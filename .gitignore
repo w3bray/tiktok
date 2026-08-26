@@ -1,0 +1,19 @@
+# Credenciais - NUNCA versionar
+.env
+.env.local
+
+# Sessao do navegador (contem cookies de login)
+user-data/
+storage-state.json
+
+# Logs e relatorios
+logs/
+
+# Dependencias
+node_modules/
+
+# Overrides locais de seletores
+src/selectors.local.json
+
+# Sistema
+.DS_Store

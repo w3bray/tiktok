@@ -1,0 +1,24 @@
+{
+  "name": "tiktok-cleaner",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Bot que remove 100% dos videos republicados e curtidos da sua propria conta do TikTok",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "clean": "node src/index.js --all",
+    "likes": "node src/index.js --likes",
+    "reposts": "node src/index.js --reposts",
+    "dry-run": "node src/index.js --all --dry-run",
+    "login": "node src/index.js --login-only",
+    "inspect": "node src/index.js --inspect",
+    "test": "node test/offline.test.mjs"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "playwright": "^1.49.1"
+  }
+}
