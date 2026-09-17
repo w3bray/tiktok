@@ -13,7 +13,14 @@
     "dry-run": "node src/index.js --all --dry-run",
     "login": "node src/index.js --login-only",
     "inspect": "node src/index.js --inspect",
-    "test": "node test/offline.test.mjs"
+    "android": "node android/src/index.js --all",
+    "android:likes": "node android/src/index.js --likes",
+    "android:reposts": "node android/src/index.js --reposts",
+    "android:dry-run": "node android/src/index.js --all --dry-run",
+    "android:inspect": "node android/src/index.js --inspect",
+    "test": "npm run test:android && npm run test:web",
+    "test:web": "node test/offline.test.mjs",
+    "test:android": "node test/android.test.mjs && node test/android-adb.test.mjs && node test/android-flow.test.mjs"
   },
   "engines": {
     "node": ">=18"
