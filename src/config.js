@@ -8,9 +8,13 @@ Uso:
   node src/index.js [opcoes]
 
 Alvos (escolha ao menos um):
-  --all               Limpa republicados E curtidos
-  --reposts           Limpa apenas os republicados
-  --likes             Limpa apenas os videos curtidos
+  --likes             Curtidas
+  --saved             Videos salvos + colecoes
+  --reposts           Republicados
+  --all               As quatro categorias de uma vez
+
+  --videos-salvos     So os videos salvos (sem as colecoes)
+  --collections       So as colecoes
 
 Opcoes:
   --dry-run           Percorre tudo e mostra o que faria, sem remover nada
@@ -61,7 +65,10 @@ export function parseArgs(argv = process.argv.slice(2)) {
     login: process.env.TIKTOK_LOGIN?.trim() || username,
     password: process.env.TIKTOK_PASSWORD ?? '',
 
+    // --saved cobre as duas metades de "Favoritos": os videos e as pastas.
     reposts: flags.has('all') || flags.has('reposts'),
+    saved: flags.has('all') || flags.has('saved') || flags.has('videos-salvos'),
+    collections: flags.has('all') || flags.has('saved') || flags.has('collections'),
     likes: flags.has('all') || flags.has('likes'),
 
     dryRun: flags.has('dry-run'),
@@ -87,8 +94,9 @@ export function parseArgs(argv = process.argv.slice(2)) {
     process.exit(1);
   }
 
-  if (!config.reposts && !config.likes && !config.loginOnly && !config.inspect) {
-    console.error('ERRO: escolha o que limpar: --all, --reposts ou --likes. Use --help.');
+  const temAlvo = config.reposts || config.saved || config.collections || config.likes;
+  if (!temAlvo && !config.loginOnly && !config.inspect) {
+    console.error('ERRO: escolha o que limpar: --likes, --saved, --reposts ou --all. Use --help.');
     process.exit(1);
   }
 

@@ -15,10 +15,22 @@
   "profileTab": ["^perfil$", "^profile$", "^eu$", "^me$", "aba perfil", "profile tab"],
   "likedTab": ["curtid", "\\bliked\\b", "videos curtidos", "liked videos"],
   "repostTab": ["repost", "republicad", "repostagem"],
+  "favoritesTab": ["favorito", "^salvos$", "\\bsaved\\b", "\\bfavorites\\b"],
+  "collectionsTab": ["^colecoes$", "^colecao$", "^collections$", "minhas colecoes"],
 
   "likeButton": ["curtir", "curtid", "\\blike\\b", "\\bliked\\b", "descurtir", "unlike"],
   "repostButton": ["^repostar$", "^repost$", "repostado", "reposted"],
+  "bookmarkButton": ["favorito", "salvar", "\\bsave\\b", "\\bsaved\\b", "adicionar aos favoritos"],
   "shareButton": ["compartilhar", "\\bshare\\b", "enviar para"],
+
+  "collectionMenu": ["mais opcoes", "more options", "^editar$", "^edit$", "gerenciar"],
+  "deleteCollection": [
+    "excluir cole",
+    "apagar cole",
+    "delete collection",
+    "remover cole",
+    "excluir pasta"
+  ],
   "removeRepost": [
     "remover.*repost",
     "remove.*repost",
@@ -26,7 +38,18 @@
     "remover.*republica",
     "cancelar.*repost"
   ],
-  "confirm": ["^remover$", "^remove$", "^confirmar$", "^confirm$", "^sim$", "^yes$", "^ok$"],
+  "confirm": [
+    "^remover$",
+    "^remove$",
+    "^excluir$",
+    "^apagar$",
+    "^delete$",
+    "^confirmar$",
+    "^confirm$",
+    "^sim$",
+    "^yes$",
+    "^ok$"
+  ],
 
   "emptyState": [
     "nada por aqui",

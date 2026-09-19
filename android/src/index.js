@@ -3,7 +3,7 @@ import path from 'node:path';
 import { ROOT, loadEnv, envInt } from '../../src/env.js';
 import { Logger } from '../../src/logger.js';
 import { Adb } from './adb.js';
-import { Session } from './flows.js';
+import { Session, KINDS, ALL_KINDS } from './flows.js';
 import { center } from './ui.js';
 
 const ANDROID_DIR = path.join(ROOT, 'android');
@@ -16,9 +16,13 @@ Uso:
   node android/src/index.js [opcoes]
 
 Alvos (escolha ao menos um):
-  --all               Limpa republicados E curtidos
-  --reposts           Limpa apenas os republicados
-  --likes             Limpa apenas os curtidos
+  --likes             Curtidas
+  --saved             Videos salvos + colecoes
+  --reposts           Republicados
+  --all               As quatro categorias de uma vez
+
+  --videos-salvos     So os videos salvos (sem as colecoes)
+  --collections       So as colecoes
 
 Opcoes:
   --dry-run           Percorre e conta, sem remover nada
@@ -59,7 +63,10 @@ function parseArgs(argv = process.argv.slice(2)) {
     : envInt('ACTION_DELAY_MIN', 1800);
 
   const config = {
+    // --saved cobre as duas metades de "Favoritos": os videos e as pastas.
     reposts: flags.has('all') || flags.has('reposts'),
+    saved: flags.has('all') || flags.has('saved') || flags.has('videos-salvos'),
+    collections: flags.has('all') || flags.has('saved') || flags.has('collections'),
     likes: flags.has('all') || flags.has('likes'),
     dryRun: flags.has('dry-run'),
     inspect: flags.has('inspect'),
@@ -78,8 +85,9 @@ function parseArgs(argv = process.argv.slice(2)) {
     logsDir: path.join(ROOT, 'logs'),
   };
 
-  if (!config.reposts && !config.likes && !config.inspect) {
-    console.error('ERRO: escolha o que limpar: --all, --reposts ou --likes. Use --help.');
+  const temAlvo = config.reposts || config.saved || config.collections || config.likes;
+  if (!temAlvo && !config.inspect) {
+    console.error('ERRO: escolha o que limpar: --likes, --saved, --reposts ou --all. Use --help.');
     process.exit(1);
   }
 
@@ -186,20 +194,27 @@ async function main() {
   try {
     await session.start();
 
-    if (config.reposts) summary.reposts = await session.cleanTab('reposts', budget);
-    if (config.likes) summary.likes = await session.cleanTab('likes', budget);
+    const alvos = ALL_KINDS.filter((kind) => config[kind]);
+
+    for (const kind of alvos) {
+      summary[kind] = await session.cleanTab(kind, budget);
+    }
 
     if (!config.dryRun) {
       logger.step('Verificacao final');
-      if (config.reposts) summary.reposts.empty = await session.verifyEmpty('reposts');
-      if (config.likes) summary.likes.empty = await session.verifyEmpty('likes');
+      for (const kind of alvos) {
+        summary[kind].empty = await session.verifyEmpty(kind);
+      }
     }
 
     logger.step('Resultado');
     for (const [kind, result] of Object.entries(summary)) {
       const status =
         result.empty === true ? '100% limpo' : result.empty === false ? 'INCOMPLETO' : '-';
-      logger.info(`${kind}: removidos=${result.removed} falhas=${result.failed} ${status}`, result);
+      logger.info(
+        `${KINDS[kind].label}: removidos=${result.removed} falhas=${result.failed} ${status}`,
+        result,
+      );
     }
   } catch (error) {
     logger.error(`Erro inesperado: ${error.message}`, { stack: error.stack });

@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "Bot que remove 100% dos videos republicados e curtidos da sua propria conta do TikTok",
+  "description": "Bot que remove 100% das curtidas, salvos, colecoes e republicados da sua propria conta do TikTok",
   "main": "src/index.js",
   "scripts": {
     "start": "node src/index.js",
@@ -21,7 +21,9 @@
     "test": "npm run test:android && npm run test:userscript && npm run test:web",
     "test:web": "node test/offline.test.mjs",
     "test:userscript": "node test/userscript.test.mjs",
-    "test:android": "node test/android.test.mjs && node test/android-adb.test.mjs && node test/android-flow.test.mjs"
+    "test:android": "node test/android.test.mjs && node test/android-adb.test.mjs && node test/android-flow.test.mjs",
+    "saved": "node src/index.js --saved",
+    "android:saved": "node android/src/index.js --saved"
   },
   "engines": {
     "node": ">=18"

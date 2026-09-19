@@ -18,8 +18,16 @@ object Patterns {
     val profileTab = listOf("^perfil$", "^profile$", "^eu$", "^me$", "aba perfil", "profile tab")
     val likedTab = listOf("curtid", "\\bliked\\b", "videos curtidos", "liked videos")
     val repostTab = listOf("repost", "republicad", "repostagem")
+    val favoritesTab = listOf("favorito", "^salvos$", "\\bsaved\\b", "\\bfavorites\\b")
+    val collectionsTab = listOf("^colecoes$", "^colecao$", "^collections$", "minhas colecoes")
 
     val likeButton = listOf("curtir", "curtid", "\\blike\\b", "\\bliked\\b", "descurtir", "unlike")
+    val bookmarkButton =
+        listOf("favorito", "salvar", "\\bsave\\b", "\\bsaved\\b", "adicionar aos favoritos")
+
+    val collectionMenu = listOf("mais opcoes", "more options", "^editar$", "^edit$", "gerenciar")
+    val deleteCollection =
+        listOf("excluir cole", "apagar cole", "delete collection", "remover cole", "excluir pasta")
     val repostButton = listOf("^repostar$", "^repost$", "repostado", "reposted")
     val shareButton = listOf("compartilhar", "\\bshare\\b", "enviar para")
     val removeRepost = listOf(
@@ -29,7 +37,10 @@ object Patterns {
         "remover.*republica",
         "cancelar.*repost",
     )
-    val confirm = listOf("^remover$", "^remove$", "^confirmar$", "^confirm$", "^sim$", "^yes$")
+    val confirm = listOf(
+        "^remover$", "^remove$", "^excluir$", "^apagar$", "^delete$",
+        "^confirmar$", "^confirm$", "^sim$", "^yes$",
+    )
 
     val emptyState = listOf(
         "nada por aqui", "nenhum video", "sem videos", "no videos", "nothing here", "no content",

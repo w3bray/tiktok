@@ -1,17 +1,26 @@
 import { center, findByPatterns, gridCells } from './ui.js';
-import { redFraction, shrink } from './png.js';
+import { redFraction, shrink, isBrandRed, isAccent } from './png.js';
 import { sleep, jitter, maybeCooldown } from '../../src/human.js';
 
-/** Acima disso, o icone esta pintado de vermelho — ou seja, curtido/repostado. */
+/** Acima disso, o icone esta pintado — ou seja, curtido/salvo/repostado. */
 const RED_THRESHOLD = 0.12;
 
 /** Celulas processadas por varredura antes de recarregar a grade. */
 const BATCH = 9;
 
-const KINDS = {
-  likes: { label: 'curtidos', tab: 'likedTab' },
-  reposts: { label: 'republicados', tab: 'repostTab' },
+/**
+ * Cada alvo diz em que aba mora, qual botao desfaz e que cor o icone aceso
+ * tem: vermelho para curtir/repostar, amarelo para salvar.
+ */
+export const KINDS = {
+  likes: { label: 'curtidos', tab: 'likedTab', button: 'likeButton', color: isBrandRed },
+  reposts: { label: 'republicados', tab: 'repostTab', button: 'repostButton', color: isBrandRed },
+  saved: { label: 'salvos', tab: 'favoritesTab', button: 'bookmarkButton', color: isAccent },
+  collections: { label: 'colecoes', tab: 'favoritesTab', button: null, color: isAccent },
 };
+
+/** Ordem de --all: as quatro categorias, uma de cada vez. */
+export const ALL_KINDS = ['reposts', 'saved', 'collections', 'likes'];
 
 export class Session {
   constructor(adb, config, logger, patterns) {
@@ -60,20 +69,24 @@ export class Session {
     await this.adb.tap(point.x, point.y);
   }
 
-  /** Fracao de vermelho no miolo do icone: e assim que lemos o estado. */
-  async redness(bounds) {
+  /** Fracao de pixels acesos no miolo do icone: e assim que lemos o estado. */
+  async redness(bounds, color = isBrandRed) {
     const shot = await this.adb.screenshot();
     // A captura pode vir em resolucao diferente da tela logica (densidade).
     const scaleX = shot.width / this.screen.width;
     const scaleY = shot.height / this.screen.height;
     const box = shrink(bounds, 0.55);
 
-    return redFraction(shot, {
-      x1: box.x1 * scaleX,
-      y1: box.y1 * scaleY,
-      x2: box.x2 * scaleX,
-      y2: box.y2 * scaleY,
-    });
+    return redFraction(
+      shot,
+      {
+        x1: box.x1 * scaleX,
+        y1: box.y1 * scaleY,
+        x2: box.x2 * scaleX,
+        y2: box.y2 * scaleY,
+      },
+      color,
+    );
   }
 
   async openProfile() {
@@ -104,7 +117,20 @@ export class Session {
 
   async openProfileTab(kind) {
     if (!(await this.openProfile())) return false;
-    return this.openTab(kind);
+    if (!(await this.openTab(kind))) return false;
+
+    // Colecoes sao uma sub-aba dentro de Favoritos.
+    if (kind === 'collections') {
+      const sub = await this.find('collectionsTab');
+      if (!sub) {
+        this.logger.error('Nao achei a sub-aba "Colecoes" dentro de Favoritos.');
+        return false;
+      }
+      await this.tapNode(sub);
+      await this.pause();
+    }
+
+    return true;
   }
 
   /** Puxa a grade para baixo para recarregar depois das remocoes. */
@@ -141,20 +167,24 @@ export class Session {
     return Boolean(await this.find('playerMarker'));
   }
 
-  /** Descurte o video aberto. Retorna 'removed' | 'already' | 'failed'. */
-  async undoLike() {
-    const like = await this.find('likeButton');
-    if (!like) return 'failed';
+  /**
+   * Apaga o botao do video aberto (descurtir ou tirar dos salvos).
+   * Retorna 'removed' | 'already' | 'failed'.
+   */
+  async undoToggle(kind) {
+    const { button, color } = KINDS[kind];
+    const node = await this.find(button);
+    if (!node) return 'failed';
 
-    if ((await this.redness(like.bounds)) < RED_THRESHOLD) return 'already';
+    if ((await this.redness(node.bounds, color)) < RED_THRESHOLD) return 'already';
 
-    await this.tapNode(like);
+    await this.tapNode(node);
     await this.pause();
 
-    if ((await this.redness(like.bounds)) >= RED_THRESHOLD) {
-      await this.tapNode(like);
+    if ((await this.redness(node.bounds, color)) >= RED_THRESHOLD) {
+      await this.tapNode(node);
       await this.pause();
-      if ((await this.redness(like.bounds)) >= RED_THRESHOLD) return 'failed';
+      if ((await this.redness(node.bounds, color)) >= RED_THRESHOLD) return 'failed';
     }
 
     return 'removed';
@@ -199,8 +229,44 @@ export class Session {
     return 'removed';
   }
 
+  /**
+   * Exclui a colecao aberta: menu de opcoes, "excluir colecao" e confirmar.
+   * Se o menu nao existir nesta versao, devolve 'failed' sem mexer em nada.
+   */
+  async deleteCollection() {
+    let remove = await this.find('deleteCollection');
+
+    if (!remove) {
+      const menu = await this.find('collectionMenu');
+      if (!menu) return 'failed';
+
+      await this.tapNode(menu);
+      await this.pause();
+      remove = await this.find('deleteCollection');
+    }
+
+    if (!remove) {
+      await this.adb.back();
+      await this.pause(0.5);
+      return 'failed';
+    }
+
+    await this.tapNode(remove);
+    await this.pause();
+
+    const confirm = await this.find('confirm', { clickable: true });
+    if (confirm) {
+      await this.tapNode(confirm);
+      await this.pause();
+    }
+
+    return 'removed';
+  }
+
   async undo(kind) {
-    return kind === 'likes' ? this.undoLike() : this.undoRepost();
+    if (kind === 'reposts') return this.undoRepost();
+    if (kind === 'collections') return this.deleteCollection();
+    return this.undoToggle(kind);
   }
 
   /** --dry-run: percorre a grade contando, sem tocar em nada. */
@@ -278,7 +344,8 @@ export class Session {
         await this.tapNode(cells[index]);
         await this.pause();
 
-        if (!(await this.inPlayer())) {
+        // Colecao abre uma grade, nao o player: so os videos tem esse check.
+        if (kind !== 'collections' && !(await this.inPlayer())) {
           this.logger.warn('O toque nao abriu o video; pulando esta celula.');
           await this.adb.back();
           await this.pause(0.5);

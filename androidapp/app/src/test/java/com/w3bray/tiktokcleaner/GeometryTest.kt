@@ -80,4 +80,22 @@ class GeometryTest {
         assertFalse(Geometry.isBrandRed(22, 24, 35)) // fundo escuro
         assertFalse(Geometry.isBrandRed(120, 90, 90)) // marrom apagado
     }
+
+    @Test
+    fun `reconhece o amarelo do icone de salvar`() {
+        assertTrue(Geometry.isBrandYellow(255, 193, 7))
+        assertTrue(Geometry.isBrandYellow(250, 176, 5))
+        assertFalse(Geometry.isBrandYellow(255, 255, 255)) // icone apagado
+        assertFalse(Geometry.isBrandYellow(22, 24, 35)) // fundo escuro
+        assertFalse(Geometry.isBrandYellow(254, 44, 85)) // vermelho nao e amarelo
+    }
+
+    @Test
+    fun `aceso cobre vermelho e amarelo, mas nao apagado`() {
+        assertTrue(Geometry.isAccent(254, 44, 85))
+        assertTrue(Geometry.isAccent(255, 193, 7))
+        assertFalse(Geometry.isAccent(255, 255, 255))
+        assertFalse(Geometry.isAccent(22, 24, 35))
+        assertFalse(Geometry.isAccent(150, 150, 150))
+    }
 }

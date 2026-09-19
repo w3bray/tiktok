@@ -22,7 +22,6 @@
   'use strict';
 
   const STATE_KEY = 'tiktok-cleaner:state';
-  const VERMELHO = /rgba?\(254,44,85/;
 
   const SEL = {
     likedTab: [
@@ -32,6 +31,16 @@
       '[role="tab"]:not([aria-label])',
     ],
     repostTab: ['[data-e2e="repost-tab"]', '[role="tab"][aria-label*="epost"]'],
+    favoritesTab: [
+      '[data-e2e="favorites-tab"]',
+      '[data-e2e="favorite-tab"]',
+      '[role="tab"][aria-label*="avorit"]',
+    ],
+    collectionsTab: [
+      '[data-e2e="collection-tab"]',
+      '[data-e2e="collections-tab"]',
+      '[role="tab"][aria-label*="ole"]',
+    ],
     gridLink: [
       '[data-e2e="user-post-item"] a[href*="/video/"]',
       '[data-e2e="user-liked-item"] a[href*="/video/"]',
@@ -50,9 +59,41 @@
       '[data-e2e="repost-icon"]',
       'button[aria-label*="epost"]',
     ],
+    bookmarkButton: [
+      '[data-e2e="browse-bookmark-icon"]',
+      '[data-e2e="video-bookmark"]',
+      '[data-e2e="bookmark-icon"]',
+      'button[aria-label*="avorit"]',
+      'button[aria-label*="alvar"]',
+    ],
+    collectionLink: ['[data-e2e="collection-item"] a', 'a[href*="/collection/"]'],
+    collectionMenu: [
+      '[data-e2e="collection-more"]',
+      'button[aria-label*="ais opç"]',
+      'button[aria-label*="ore option"]',
+    ],
+    collectionDelete: [
+      'div[role="button"]',
+      'li',
+      'button',
+    ],
+    confirmDelete: ['button'],
   };
 
-  const ROTULO = { likes: 'curtidos', reposts: 'republicados' };
+  /** Textos (sem acento) que identificam excluir/confirmar dentro do menu. */
+  const TEXTO = {
+    collectionDelete: ['excluir cole', 'apagar cole', 'delete collection', 'remover cole'],
+    confirmDelete: ['excluir', 'remover', 'delete', 'confirmar', 'ok'],
+  };
+
+  const ROTULO = {
+    likes: 'curtidos',
+    saved: 'salvos',
+    collections: 'coleções',
+    reposts: 'republicados',
+  };
+
+  const BOTAO = { likes: 'likeButton', saved: 'bookmarkButton', reposts: 'repostButton' };
 
   // ---------------------------------------------------------------- estado
 
@@ -112,17 +153,49 @@
     return [];
   }
 
-  /** O TikTok pinta o icone ativo com o vermelho da marca. */
+  /**
+   * Icone aceso tem cor viva: vermelho em curtir/repostar, amarelo em salvar.
+   * Apagado e branco ou cinza, entao "tem cor" separa os dois sem depender de
+   * um RGB fixo.
+   */
+  function colorido(valor) {
+    const achado = /rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?/.exec(String(valor));
+    if (!achado) return false;
+
+    const [r, g, b] = [Number(achado[1]), Number(achado[2]), Number(achado[3])];
+    const alfa = achado[4] === undefined ? 1 : Number(achado[4]);
+    if (alfa < 0.3) return false;
+
+    const maior = Math.max(r, g, b);
+    return maior > 120 && maior - Math.min(r, g, b) > 60;
+  }
+
   function estaAceso(elemento) {
     const alvo = elemento.closest('button') || elemento;
     for (const node of [alvo, ...alvo.querySelectorAll('*')]) {
       const estilo = getComputedStyle(node);
-      const cores = [estilo.color, estilo.fill, estilo.stroke].map((cor) =>
-        String(cor).replace(/\s+/g, ''),
-      );
-      if (cores.some((cor) => VERMELHO.test(cor))) return true;
+      if ([estilo.color, estilo.fill, estilo.stroke].some(colorido)) return true;
     }
     return false;
+  }
+
+  const semAcento = (texto) =>
+    String(texto || '')
+      .normalize('NFD')
+      .replace(/[̀-ͯ]/g, '')
+      .toLowerCase();
+
+  /** Primeiro elemento visivel cujo texto casa com um dos rotulos. */
+  function acharPorTexto(chave) {
+    for (const seletor of SEL[chave]) {
+      for (const elemento of document.querySelectorAll(seletor)) {
+        const texto = semAcento(elemento.textContent).trim();
+        if (!texto || texto.length > 60) continue;
+        if (!elemento.offsetParent && elemento.offsetHeight === 0) continue;
+        if (TEXTO[chave].some((alvo) => texto.includes(alvo))) return elemento;
+      }
+    }
+    return null;
   }
 
   function idDoVideo(url = location.pathname) {
@@ -130,8 +203,14 @@
     return achado ? achado[1] : null;
   }
 
+  function idDaColecao(url = location.pathname) {
+    const achado = /\/collection\/([\w-]+)/.exec(url);
+    return achado ? achado[1] : null;
+  }
+
   function ondeEstou() {
     if (idDoVideo()) return 'video';
+    if (idDaColecao()) return 'colecao';
     if (/^\/@[^/]+\/?$/.test(location.pathname)) return 'perfil';
     return 'outro';
   }
@@ -221,9 +300,12 @@
       return;
     }
 
-    elBotoes.appendChild(botao('Limpar tudo', 'primario', () => comecar(['reposts', 'likes'])));
-    elBotoes.appendChild(botao('Só curtidos', '', () => comecar(['likes'])));
-    elBotoes.appendChild(botao('Só republicados', '', () => comecar(['reposts'])));
+    elBotoes.appendChild(
+      botao('Limpar tudo', 'primario', () => comecar(['reposts', 'saved', 'collections', 'likes'])),
+    );
+    elBotoes.appendChild(botao('Curtidas', '', () => comecar(['likes'])));
+    elBotoes.appendChild(botao('Salvos e coleções', '', () => comecar(['saved', 'collections'])));
+    elBotoes.appendChild(botao('Republicados', '', () => comecar(['reposts'])));
   }
 
   // ------------------------------------------------------------- controle
@@ -269,17 +351,34 @@
 
   // --------------------------------------------------------------- passos
 
-  /** Garante que a aba certa do perfil esta aberta. */
-  function abrirAba() {
-    const chave = estado().modo === 'likes' ? 'likedTab' : 'repostTab';
-    const aba = achar(chave);
+  const ABA = {
+    likes: 'likedTab',
+    reposts: 'repostTab',
+    saved: 'favoritesTab',
+    collections: 'favoritesTab',
+  };
 
+  /** Garante que a aba (e a sub-aba, no caso de coleções) está aberta. */
+  function abrirAba() {
+    const modo = estado().modo;
+    const aba = achar(ABA[modo]);
     if (!aba) return false;
 
     const marcada = aba.closest('[aria-selected]') || aba;
-    if (marcada.getAttribute('aria-selected') === 'true') return true;
+    if (marcada.getAttribute('aria-selected') !== 'true') {
+      tocar(aba);
+      return false;
+    }
 
-    tocar(aba);
+    if (modo !== 'collections') return true;
+
+    const sub = achar('collectionsTab');
+    if (!sub) return false;
+
+    const subMarcada = sub.closest('[aria-selected]') || sub;
+    if (subMarcada.getAttribute('aria-selected') === 'true') return true;
+
+    tocar(sub);
     return false;
   }
 
@@ -289,16 +388,19 @@
       return;
     }
 
+    const coleções = estado().modo === 'collections';
+    const chave = coleções ? 'collectionLink' : 'gridLink';
+    const identificar = coleções ? idDaColecao : idDoVideo;
+
     const bloqueados = new Set(estado().bloqueados);
-    const links = acharTodos('gridLink').filter((link) => {
-      const id = idDoVideo(link.getAttribute('href') || '');
+    const todos = acharTodos(chave);
+    const links = todos.filter((link) => {
+      const id = identificar(link.getAttribute('href') || '');
       return id && !bloqueados.has(id);
     });
 
     if (links.length === 0) {
-      const temItens = acharTodos('gridLink').length > 0;
-
-      if (temItens) {
+      if (todos.length > 0) {
         atualizar({
           mensagem: `${bloqueados.size} item(ns) nao puderam ser removidos.`,
           falhas: estado().falhas,
@@ -309,14 +411,54 @@
       return;
     }
 
-    atualizar({ mensagem: `Abrindo video (${links.length} na fila)...` });
+    atualizar({ mensagem: `Abrindo ${coleções ? 'coleção' : 'vídeo'} (${links.length} na fila)...` });
     tocar(links[0]);
+  }
+
+  /** Exclui a coleção aberta: menu de opções, "excluir coleção", confirmar. */
+  async function passoNaColecao() {
+    const id = idDaColecao();
+
+    let excluir = acharPorTexto('collectionDelete');
+
+    if (!excluir) {
+      const menu = achar('collectionMenu');
+      if (!menu) {
+        bloquear(id, true, 'Esta página não oferece excluir coleção. Use o app.');
+        voltar();
+        return;
+      }
+
+      tocar(menu);
+      await dormir(sorteio(900, 1500));
+      excluir = acharPorTexto('collectionDelete');
+    }
+
+    if (!excluir) {
+      bloquear(id, true, 'Não achei "excluir coleção" no menu.');
+      voltar();
+      return;
+    }
+
+    atualizar({ mensagem: 'Excluindo coleção...' });
+    tocar(excluir);
+    await dormir(sorteio(900, 1500));
+
+    const confirmar = acharPorTexto('confirmDelete');
+    if (confirmar) {
+      tocar(confirmar);
+      await dormir(sorteio(1000, 1800));
+    }
+
+    atualizar({ removidos: estado().removidos + 1, mensagem: 'Coleção excluída.' });
+
+    // A exclusão costuma devolver ao perfil sozinha.
+    if (ondeEstou() === 'colecao') voltar();
   }
 
   async function passoNoVideo() {
     const id = idDoVideo();
-    const chave = estado().modo === 'likes' ? 'likeButton' : 'repostButton';
-    const botaoAcao = achar(chave);
+    const botaoAcao = achar(BOTAO[estado().modo]);
 
     if (!botaoAcao) {
       bloquear(id, true, 'Botao nao encontrado neste video.');
@@ -359,7 +501,7 @@
 
   function voltar() {
     if (history.length > 1) history.back();
-    else location.href = location.pathname.replace(/\/(video|photo)\/\d+.*$/, '');
+    else location.href = location.pathname.replace(/\/(video|photo|collection)\/[\w-]+.*$/, '');
   }
 
   // ----------------------------------------------------------------- laco
@@ -376,6 +518,7 @@
 
         try {
           if (onde === 'video') await passoNoVideo();
+          else if (onde === 'colecao') await passoNaColecao();
           else if (onde === 'perfil') await passoNoPerfil();
           else atualizar({ mensagem: 'Volte para o seu perfil.' });
         } catch (erro) {
