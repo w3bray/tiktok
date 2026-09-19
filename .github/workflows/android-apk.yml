@@ -27,8 +27,13 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Instala o Android SDK
-        uses: android-actions/setup-android@v3
+      # O runner do Ubuntu ja vem com o SDK do Android instalado e as licencas
+      # aceitas. A action setup-android tentaria instalar o pacote 'tools',
+      # que foi descontinuado, e falharia.
+      - name: Confere o SDK do Android
+        run: |
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          ls "$ANDROID_HOME/platforms"
 
       - name: Prepara o Gradle
         uses: gradle/actions/setup-gradle@v4
