@@ -2,7 +2,7 @@ import { parseArgs } from './config.js';
 import { Logger } from './logger.js';
 import { launchBrowser } from './browser.js';
 import { ensureLogin } from './session.js';
-import { cleanTab, verifyEmpty } from './tasks/clean.js';
+import { cleanTab, verifyEmpty, KINDS, ALL_KINDS } from './tasks/clean.js';
 import { inspect } from './tasks/inspect.js';
 
 async function main() {
@@ -48,20 +48,30 @@ async function main() {
       return;
     }
 
-    if (config.reposts) summary.reposts = await cleanTab(page, config, logger, 'reposts', budget);
-    if (config.likes) summary.likes = await cleanTab(page, config, logger, 'likes', budget);
+    const alvos = ALL_KINDS.filter((kind) => config[kind]);
+
+    for (const kind of alvos) {
+      summary[kind] = await cleanTab(page, config, logger, kind, budget);
+    }
 
     if (!config.dryRun) {
       logger.step('Verificacao final');
-      if (config.reposts) summary.reposts.empty = await verifyEmpty(page, config, logger, 'reposts');
-      if (config.likes) summary.likes.empty = await verifyEmpty(page, config, logger, 'likes');
+      for (const kind of alvos) {
+        summary[kind].empty = await verifyEmpty(page, config, logger, kind);
+      }
     }
 
     logger.step('Resultado');
     for (const [kind, result] of Object.entries(summary)) {
-      const status = result.empty === true ? '100% limpo' : result.empty === false ? 'INCOMPLETO' : '-';
+      const status = result.unsupported
+        ? 'NAO SUPORTADO NO SITE'
+        : result.empty === true
+          ? '100% limpo'
+          : result.empty === false
+            ? 'INCOMPLETO'
+            : '-';
       logger.info(
-        `${kind}: removidos=${result.removed} falhas=${result.failed} ${status}`,
+        `${KINDS[kind].label}: removidos=${result.removed} falhas=${result.failed} ${status}`,
         result,
       );
     }

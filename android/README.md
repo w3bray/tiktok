@@ -1,7 +1,7 @@
 # tiktok-cleaner — versão Android
 
-Remove **100% dos vídeos republicados e curtidos** controlando o **app do
-TikTok direto no celular**, via `adb` + UiAutomator: o bot lê a tela, encontra
+Remove **100% das curtidas, dos salvos, das coleções e dos republicados**
+controlando o **app do TikTok direto no celular**, via `adb` + UiAutomator: o bot lê a tela, encontra
 os botões e toca neles, exatamente como você faria com o dedo — só que sem
 parar.
 
@@ -33,7 +33,7 @@ adb devices      # deve listar seu aparelho como "device"
 
 ```bash
 npm run android:dry-run    # só conta, não remove
-npm run android            # remove republicados + curtidos
+npm run android            # remove as quatro categorias
 ```
 
 ### B) No próprio celular, sem computador (Termux)
@@ -65,16 +65,20 @@ mexa no celular enquanto o bot trabalha — ele controla a tela.
 ## Comandos
 
 ```bash
-npm run android              # republicados + curtidos
-npm run android:likes        # só curtidos
-npm run android:reposts      # só republicados
+npm run android              # as quatro categorias
+npm run android:likes        # só as curtidas
+npm run android:saved        # só os salvos + coleções
+npm run android:reposts      # só os republicados
 npm run android:dry-run      # conta sem remover
 npm run android:inspect      # mostra os rótulos da tela atual
 ```
 
 | Opção | O que faz |
 |---|---|
-| `--all` / `--likes` / `--reposts` | escolhe o que limpar |
+| `--likes` | curtidas |
+| `--saved` | vídeos salvos + coleções |
+| `--reposts` | republicados |
+| `--all` | as quatro categorias |
 | `--dry-run` | percorre e conta, sem tocar em nada |
 | `--limit 50` | para depois de 50 remoções |
 | `--slow 4000` | mais devagar (menos chance de captcha/limite) |
@@ -93,16 +97,18 @@ Aqui **não há login**: o bot usa a conta que já está logada no app.
 
 1. **Abre o app** — detecta qual pacote do TikTok está instalado
    (`com.zhiliaoapp.musically`, `trill` ou `aweme`) e o inicia.
-2. **Vai ao perfil** e abre a aba *Curtidos* ou *Repostagens*, localizadas pelo
+2. **Vai ao perfil** e abre a aba da categoria — *Curtidos*, *Favoritos*,
+   *Repostagens*, e a sub-aba *Coleções* dentro de Favoritos — localizadas pelo
    texto/descrição da view.
 3. **Acha as células da grade** pela geometria: a grade do TikTok tem 3
    colunas, então cada célula mede ~⅓ da largura da tela. Isso sobrevive a
    mudanças de layout muito melhor do que qualquer `resource-id`.
-4. **Abre o vídeo e desfaz** — tira um `screencap`, mede a **fração de pixels
-   vermelhos** (`#FE2C55`) no miolo do ícone e só toca se ele estiver aceso.
-   Depois reconfere; se o toque não pegou, tenta mais uma vez.
-   Para republicações, usa o botão do painel lateral ou, se não existir nessa
-   versão, o menu *Compartilhar → Remover repostagem*.
+4. **Abre o vídeo e desfaz** — tira um `screencap` e mede a **fração de pixels
+   coloridos** no miolo do ícone: `#FE2C55` para curtir/repostar, `#FFC107`
+   para salvar. Só toca se estiver aceso; depois reconfere e, se o toque não
+   pegou, tenta mais uma vez. Para republicações, usa o botão do painel lateral
+   ou o menu *Compartilhar → Remover repostagem*. Coleções são pastas: abre,
+   usa o menu de opções e confirma a exclusão.
 5. **Volta, recarrega e repete** até a aba zerar — daí o "100%".
 6. **Verificação final** reabre cada aba e reporta `100% limpo` ou
    `INCOMPLETO`.
@@ -147,14 +153,16 @@ npm run test:android
 
 Três arquivos, todos **sem aparelho e sem internet**:
 
-- `test/android.test.mjs` — decodificador PNG, detecção do vermelho da marca,
-  parsing do dump do UiAutomator e a heurística da grade (14 verificações).
+- `test/android.test.mjs` — decodificador PNG, detecção das cores acesas
+  (vermelho e amarelo), parsing do dump do UiAutomator e a heurística da grade
+  (18 verificações).
 - `test/android-adb.test.mjs` — wrapper do `adb` contra um binário falso:
   parsing das saídas reais e ordem dos argumentos (7 verificações).
 - `test/android-flow.test.mjs` — um **aparelho simulado** que responde
-  `uiautomator dump` e `screencap` conforme um estado interno. Cobre os dois
-  comportamentos reais de grade (reordena na hora / só no refresh) e o
-  `--limit`.
+  `uiautomator dump` e `screencap` conforme um estado interno. Cobre as quatro
+  categorias, os dois comportamentos reais de grade (reordena na hora / só no
+  refresh), o `--limit` e o isolamento entre categorias (descurtir não pode
+  tirar dos salvos).
 
 ---
 

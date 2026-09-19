@@ -1,8 +1,17 @@
 # tiktok-cleaner
 
-Bot que entra na **sua própria** conta do TikTok e remove **100% dos vídeos
-republicados e dos vídeos curtidos**, um por um, até as duas abas do perfil
-ficarem vazias — com verificação final para confirmar que zerou.
+Bot que entra na **sua própria** conta do TikTok e remove **100%** do que você
+escolher, um item por vez, até a aba do perfil ficar vazia — com verificação
+final para confirmar que zerou.
+
+## Quatro opções, em qualquer versão
+
+| Opção | O que apaga |
+|---|---|
+| **Curtidas** | todos os vídeos curtidos |
+| **Salvos e coleções** | todos os vídeos dos Favoritos **e** as pastas de coleção |
+| **Republicados** | todas as repostagens |
+| **Limpar tudo** | as quatro categorias, em sequência |
 
 Feito com [Playwright](https://playwright.dev) (Chromium real, não é API
 privada): o bot faz exatamente os mesmos cliques que você faria à mão, só que
@@ -87,16 +96,21 @@ npm run dry-run
 **3. Limpeza real:**
 
 ```bash
-npm run clean       # republicados + curtidos
+npm run clean       # as quatro categorias
+npm run likes       # só as curtidas
+npm run saved       # só os salvos + coleções
 npm run reposts     # só os republicados
-npm run likes       # só os curtidos
 ```
 
 ### Opções
 
 | Opção | O que faz |
 |---|---|
-| `--all` / `--reposts` / `--likes` | escolhe o que limpar |
+| `--likes` | curtidas |
+| `--saved` | vídeos salvos + coleções |
+| `--reposts` | republicados |
+| `--all` | as quatro categorias |
+| `--videos-salvos` / `--collections` | só uma metade dos Favoritos |
 | `--dry-run` | percorre tudo e só relata, sem remover |
 | `--limit 50` | para depois de 50 remoções (bom para testar) |
 | `--slow 4000` | aumenta o atraso entre ações (mais lento, menos captcha) |
@@ -118,12 +132,15 @@ node src/index.js --all --slow 5000 --limit 200
 1. **Login** — usa um perfil persistente do Chromium (`user-data/`), então
    cookies e sessão sobrevivem entre execuções. Se aparecer captcha ou 2FA, o
    bot **pausa e espera** você resolver na janela (até 10 minutos).
-2. **Varredura** — abre `tiktok.com/@voce`, clica na aba *Repostagens* ou
-   *Curtidos* e coleta os links dos vídeos visíveis (rolando a página).
-3. **Remoção** — abre cada vídeo, localiza o botão de curtir/repostar, confere
-   se ele está **ativo** (o TikTok pinta o ícone de vermelho `rgb(254,44,85)`)
-   e clica para desfazer. Depois reconfere o estado; se o clique não pegou,
-   tenta uma vez mais.
+2. **Varredura** — abre `tiktok.com/@voce`, clica na aba da categoria
+   (*Curtidos*, *Favoritos*, *Repostagens* — e a sub-aba *Coleções* dentro de
+   Favoritos) e coleta os links visíveis, rolando a página.
+3. **Remoção** — abre cada vídeo, localiza o botão da categoria e confere se
+   ele está **aceso**: o TikTok pinta o ícone ativo com cor viva (vermelho em
+   curtir/repostar, amarelo em salvar), e apagado ele é branco ou cinza. Só
+   clica se estiver aceso; depois reconfere e, se o clique não pegou, tenta
+   uma vez mais. Coleções são pastas: abre a coleção, usa o menu de opções e
+   confirma a exclusão.
 4. **Repetição** — o item removido some da aba, então o bot recarrega e pega a
    próxima leva. Isso se repete **até a aba zerar** — daí o "100%". Não é
    preciso paginar uma lista que muda embaixo do processo.
@@ -188,7 +205,7 @@ src/
   selectors.js      seletores com fallback + overrides locais
   human.js          atrasos aleatórios, cooldown, rolagem
   logger.js         console colorido + logs/*.jsonl
-  tasks/clean.js    varredura e remoção (curtidos e republicados)
+  tasks/clean.js    varredura e remoção das quatro categorias
   tasks/inspect.js  diagnóstico de seletores
 
 android/
@@ -196,7 +213,7 @@ android/
   src/index.js      CLI da versão Android
   src/adb.js        wrapper do adb (toque, swipe, dump, screencap)
   src/ui.js         leitura da árvore de views do UiAutomator
-  src/png.js        decodificador PNG mínimo + detecção do vermelho
+  src/png.js        decodificador PNG mínimo + detecção das cores acesas
   src/flows.js      navegação no app e remoção
 ```
 

@@ -1,8 +1,9 @@
 # TikTok Cleaner — app Android (só o celular)
 
 App que controla o **app nativo do TikTok** pelo **Serviço de Acessibilidade**
-do Android: lê a tela, encontra os botões e toca neles até as abas *Curtidos*
-e *Repostagens* zerarem.
+do Android: lê a tela, encontra os botões e toca neles até as abas zerarem.
+Quatro opções: **Curtidas**, **Salvos e coleções**, **Republicados** e
+**Limpar tudo**.
 
 Sem PC, sem cabo, sem ADB e sem root. Só o celular.
 
@@ -23,8 +24,8 @@ celular.
 5. Abra o **TikTok Cleaner** e siga os dois passos da tela:
    - **Ativar acessibilidade** → Configurações → Acessibilidade →
      *TikTok Cleaner* → ligar.
-   - Voltar ao app e escolher **Limpar tudo**, **Só curtidos** ou
-     **Só republicados**.
+   - Voltar ao app e escolher **Limpar tudo**, **Curtidas**,
+     **Salvos e coleções** ou **Republicados**.
 
 Se preferir compilar você mesmo (com PC):
 
@@ -40,17 +41,19 @@ gradle :app:assembleDebug     # ou ./gradlew, se voce gerar o wrapper
 
 1. Abre o TikTok (detecta qual pacote está instalado: `musically`, `trill` ou
    `aweme`).
-2. Vai ao **Perfil** e abre a aba alvo, encontrando os botões pela descrição de
-   acessibilidade — em português ou inglês, **com ou sem acento** (os rótulos
-   são normalizados antes da comparação).
+2. Vai ao **Perfil** e abre a aba alvo — *Curtidos*, *Favoritos*,
+   *Repostagens*, e a sub-aba *Coleções* dentro de Favoritos —, encontrando os
+   botões pela descrição de acessibilidade, em português ou inglês, **com ou
+   sem acento** (os rótulos são normalizados antes da comparação).
 3. Acha as células da grade **pela geometria**: a grade tem 3 colunas, então
    cada célula mede ~⅓ da largura da tela. Isso sobrevive a mudanças de layout
    muito melhor do que qualquer `resource-id`.
 4. Abre o vídeo e lê o **estado real do ícone**: no Android 11+ o próprio
-   serviço tira uma captura de tela e mede a fração de pixels no vermelho da
-   marca (`#FE2C55`) no miolo do botão. Só toca se estiver aceso, e reconfere
-   depois. Em versões mais antigas, cai para `isSelected`/`isChecked` e para a
-   descrição ("Descurtir" = aceso).
+   serviço tira uma captura de tela e mede a fração de pixels na cor acesa —
+   `#FE2C55` para curtir/repostar, `#FFC107` para salvar. Só toca se estiver
+   aceso, e reconfere depois. Em versões mais antigas, cai para
+   `isSelected`/`isChecked` e para a descrição ("Descurtir" = aceso).
+   Coleções são pastas: abre, usa o menu de opções e confirma a exclusão.
 5. Volta, recarrega a grade e repete até zerar, com verificação final que
    reporta `100% limpo` ou `Incompleto`.
 
@@ -89,11 +92,13 @@ testá-los na JVM, sem emulador:
 cd androidapp && gradle :app:testDebugUnitTest
 ```
 
-13 testes cobrem a heurística da grade (célula vs. botão vs. banner), a
-ordenação e deduplicação das células, o `shrink`, a detecção do vermelho, e o
-casamento de rótulos — incluindo os dois casos perigosos: "Remover repostagem"
-não pode casar com "Repostar" (criaria uma republicação em vez de remover), e a
-aba "Curtidos" do perfil não pode ser confundida com o player.
+Os testes cobrem a heurística da grade (célula vs. botão vs. banner), a
+ordenação e deduplicação das células, o `shrink`, a detecção das cores acesas
+(vermelho e amarelo) e o casamento de rótulos — incluindo os casos perigosos:
+"Remover repostagem" não pode casar com "Repostar" nem "Excluir coleção" com
+"Criar coleção" (criariam o oposto do pedido), as abas das quatro categorias
+não podem se confundir entre si, e a aba "Curtidos" do perfil não pode ser
+tomada pelo player.
 
 O workflow **APK Android** roda esses testes e compila o APK a cada push.
 

@@ -48,4 +48,12 @@ object Geometry {
     /** Vermelho da marca do TikTok (#FE2C55) e vizinhança. */
     fun isBrandRed(red: Int, green: Int, blue: Int): Boolean =
         red > 120 && red > green * 1.5 && red > blue * 1.25
+
+    /** Amarelo do ícone de salvar (#FFC107 e parentes). */
+    fun isBrandYellow(red: Int, green: Int, blue: Int): Boolean =
+        red > 150 && green > 100 && blue < 120 && red > blue * 1.6 && green > blue * 1.4
+
+    /** Qualquer ícone aceso: curtir/repostar (vermelho) ou salvar (amarelo). */
+    fun isAccent(red: Int, green: Int, blue: Int): Boolean =
+        isBrandRed(red, green, blue) || isBrandYellow(red, green, blue)
 }

@@ -2,29 +2,46 @@ import { findFirst, exists, SELECTORS } from '../selectors.js';
 import { sleep, jitter, pause, maybeCooldown, scrollFeed } from '../human.js';
 import { handleCaptcha } from '../session.js';
 
-const KINDS = {
+export const KINDS = {
   reposts: { label: 'republicados', tab: 'repostTab', button: 'repostButton' },
+  saved: { label: 'salvos', tab: 'favoritesTab', button: 'bookmarkButton' },
+  collections: { label: 'coleções', tab: 'favoritesTab', button: null },
   likes: { label: 'curtidos', tab: 'likedTab', button: 'likeButton' },
 };
+
+/** Ordem de --all: as quatro categorias, uma de cada vez. */
+export const ALL_KINDS = ['reposts', 'saved', 'collections', 'likes'];
 
 /** Quantos links pegamos por varredura antes de recarregar a pagina. */
 const BATCH = 30;
 
 /**
- * Botao "ativo" (curtido / repostado) e desenhado no vermelho da marca.
- * Comparar a cor computada e mais estavel que depender de nomes de classe,
- * que o TikTok gera com hash e troca a cada deploy.
+ * Botao aceso: o TikTok pinta o icone ativo com uma cor viva — vermelho para
+ * curtir/repostar, amarelo para salvar. Cinza e branco sao os estados
+ * apagados, entao "tem cor" separa os dois melhor do que fixar um RGB, e
+ * nao depende de nomes de classe, que o TikTok gera com hash.
  */
 async function isActive(locator) {
   return locator
     .evaluate((el) => {
+      const colorido = (valor) => {
+        const achado = /rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?/.exec(String(valor));
+        if (!achado) return false;
+
+        const [r, g, b] = [Number(achado[1]), Number(achado[2]), Number(achado[3])];
+        const alfa = achado[4] === undefined ? 1 : Number(achado[4]);
+        if (alfa < 0.3) return false;
+
+        const maior = Math.max(r, g, b);
+        const menor = Math.min(r, g, b);
+        return maior > 120 && maior - menor > 60;
+      };
+
       const target = el.closest('button') ?? el;
       const nodes = [target, ...target.querySelectorAll('*')];
       return nodes.some((node) => {
         const style = getComputedStyle(node);
-        return [style.color, style.fill, style.stroke]
-          .map((value) => String(value).replace(/\s+/g, ''))
-          .some((value) => value.includes('rgb(254,44,85)') || value.includes('rgba(254,44,85'));
+        return [style.color, style.fill, style.stroke].some(colorido);
       });
     })
     .catch(() => null);
@@ -46,6 +63,18 @@ async function openProfileTab(page, config, logger, kind) {
 
   await tabLocator.click();
   await sleep(jitter(2500, 4000));
+
+  // Coleções são uma sub-aba dentro de Favoritos.
+  if (kind === 'collections') {
+    const sub = await findFirst(page, 'collectionsTab', { timeout: 8000 });
+    if (!sub) {
+      logger.warn('Não encontrei a sub-aba "Coleções" dentro de Favoritos.');
+      return false;
+    }
+    await sub.click();
+    await sleep(jitter(2000, 3200));
+  }
+
   return true;
 }
 
@@ -124,12 +153,75 @@ async function undoOnVideo(page, config, logger, kind, url) {
   return 'removed';
 }
 
+/** Links das coleções (pastas) visíveis na sub-aba Coleções. */
+async function collectCollectionLinks(page, { max = BATCH } = {}) {
+  const found = new Set();
+  let idleRounds = 0;
+
+  while (found.size < max && idleRounds < 3) {
+    const before = found.size;
+
+    for (const selector of SELECTORS.collectionLink) {
+      const links = await page
+        .locator(selector)
+        .evaluateAll((nodes) => nodes.map((node) => node.href))
+        .catch(() => []);
+      for (const href of links) found.add(href);
+      if (links.length) break;
+    }
+
+    if (found.size >= max) break;
+    idleRounds = found.size === before ? idleRounds + 1 : 0;
+    await scrollFeed(page, 2);
+  }
+
+  return [...found].slice(0, max);
+}
+
+/**
+ * Exclui uma coleção: abre a pasta, procura o menu e o item de excluir, e
+ * confirma. O site nem sempre oferece isso — quando não oferece, devolve
+ * 'unsupported' em vez de ficar tentando.
+ */
+async function deleteCollection(page, config, logger, url) {
+  await page.goto(url, { waitUntil: 'domcontentloaded' });
+  await sleep(jitter(1800, 3200));
+  if (!(await handleCaptcha(page, logger))) return 'failed';
+
+  let remove = await findFirst(page, 'collectionDelete', { timeout: 4000 });
+
+  if (!remove) {
+    const menu = await findFirst(page, 'collectionMenu', { timeout: 5000 });
+    if (!menu) return 'unsupported';
+
+    await menu.click().catch(() => {});
+    await sleep(jitter(900, 1600));
+    remove = await findFirst(page, 'collectionDelete', { timeout: 5000 });
+  }
+
+  if (!remove) return 'unsupported';
+
+  await remove.click().catch(() => {});
+  await sleep(jitter(900, 1600));
+
+  const confirm = await findFirst(page, 'confirmDelete', { timeout: 5000 });
+  if (confirm) {
+    await confirm.click().catch(() => {});
+    await sleep(jitter(1200, 2000));
+  }
+
+  return 'removed';
+}
+
 /** --dry-run: percorre a aba inteira e so conta, sem clicar em nada. */
 async function survey(page, config, logger, kind) {
   const { label } = KINDS[kind];
   if (!(await openProfileTab(page, config, logger, kind))) return { removed: 0, failed: 0 };
 
-  const links = await collectVideoLinks(page, { max: Number.POSITIVE_INFINITY });
+  const links =
+    kind === 'collections'
+      ? await collectCollectionLinks(page, { max: Number.POSITIVE_INFINITY })
+      : await collectVideoLinks(page, { max: Number.POSITIVE_INFINITY });
   logger.ok(`[dry-run] ${links.length} ${label} encontrados (nada foi removido).`);
   for (const link of links.slice(0, 10)) logger.info(`  ${link}`);
   if (links.length > 10) logger.info(`  ... e mais ${links.length - 10}`);
@@ -150,6 +242,7 @@ export async function cleanTab(page, config, logger, kind, budget) {
 
   let removed = 0;
   let failed = 0;
+  let unsupported = false;
   const blocked = new Set();
 
   for (let pass = 1; pass <= config.maxPasses; pass++) {
@@ -160,7 +253,10 @@ export async function cleanTab(page, config, logger, kind, budget) {
 
     if (!(await openProfileTab(page, config, logger, kind))) break;
 
-    const links = await collectVideoLinks(page, { max: BATCH });
+    const links =
+      kind === 'collections'
+        ? await collectCollectionLinks(page, { max: BATCH })
+        : await collectVideoLinks(page, { max: BATCH });
     const pending = links.filter((link) => !blocked.has(link));
 
     if (links.length === 0) {
@@ -187,7 +283,10 @@ export async function cleanTab(page, config, logger, kind, budget) {
     for (const link of pending) {
       if (budget.remaining() <= 0) break;
 
-      const result = await undoOnVideo(page, config, logger, kind, link);
+      const result =
+        kind === 'collections'
+          ? await deleteCollection(page, config, logger, link)
+          : await undoOnVideo(page, config, logger, kind, link);
 
       if (result === 'removed') {
         removed += 1;
@@ -197,6 +296,15 @@ export async function cleanTab(page, config, logger, kind, budget) {
       } else if (result === 'already') {
         blocked.add(link);
         logger.info(`Ja estava desfeito: ${link}`);
+      } else if (result === 'unsupported') {
+        // O site nao expoe excluir colecao: parar aqui evita ficar em laco.
+        logger.warn(
+          'O site não oferece excluir coleções nesta conta. ' +
+            'Use a versão Android (app ou adb), onde o menu existe.',
+        );
+        blocked.add(link);
+        unsupported = true;
+        break;
       } else {
         failed += 1;
         blocked.add(link);
@@ -204,10 +312,12 @@ export async function cleanTab(page, config, logger, kind, budget) {
 
       await pause(config);
     }
+
+    if (unsupported) break;
   }
 
   logger.info(`Resumo ${label}: ${removed} removido(s), ${failed} com falha.`);
-  return { removed, failed, blocked: [...blocked] };
+  return { removed, failed, unsupported, blocked: [...blocked] };
 }
 
 /** Confere no final se a aba realmente ficou vazia. */
@@ -215,7 +325,10 @@ export async function verifyEmpty(page, config, logger, kind) {
   const { label } = KINDS[kind];
   if (!(await openProfileTab(page, config, logger, kind))) return null;
 
-  const links = await collectVideoLinks(page, { max: 5 });
+  const links =
+    kind === 'collections'
+      ? await collectCollectionLinks(page, { max: 5 })
+      : await collectVideoLinks(page, { max: 5 });
   const empty = links.length === 0 || (await exists(page, 'emptyState'));
 
   if (empty) logger.ok(`Verificado: 0 ${label} restantes (100% limpo).`);

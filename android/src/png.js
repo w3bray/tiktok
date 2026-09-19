@@ -103,12 +103,22 @@ export function isBrandRed(r, g, b) {
   return r > 120 && r > g * 1.5 && r > b * 1.25;
 }
 
+/** Amarelo do icone de salvar (#FFC107 e parentes). */
+export function isBrandYellow(r, g, b) {
+  return r > 150 && g > 100 && b < 120 && r > b * 1.6 && g > b * 1.4;
+}
+
+/** Qualquer cor de icone aceso: curtir/repostar (vermelho) ou salvar (amarelo). */
+export function isAccent(r, g, b) {
+  return isBrandRed(r, g, b) || isBrandYellow(r, g, b);
+}
+
 /**
  * Fracao de pixels vermelhos num retangulo. Fracao e mais confiavel que a
  * media: o coracao e um icone pequeno sobre fundo escuro, entao a media
  * dilui o vermelho ate sumir.
  */
-export function redFraction(png, rect) {
+export function redFraction(png, rect, predicate = isBrandRed) {
   const x1 = Math.max(0, Math.floor(rect.x1));
   const y1 = Math.max(0, Math.floor(rect.y1));
   const x2 = Math.min(png.width, Math.ceil(rect.x2));
@@ -121,7 +131,7 @@ export function redFraction(png, rect) {
     for (let x = x1; x < x2; x++) {
       const offset = (y * png.width + x) * png.channels;
       total += 1;
-      if (isBrandRed(png.data[offset], png.data[offset + 1], png.data[offset + 2])) red += 1;
+      if (predicate(png.data[offset], png.data[offset + 1], png.data[offset + 2])) red += 1;
     }
   }
 

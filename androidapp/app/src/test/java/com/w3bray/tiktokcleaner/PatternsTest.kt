@@ -45,6 +45,51 @@ class PatternsTest {
     }
 
     @Test
+    fun `aba de favoritos e sub-aba de colecoes`() {
+        assertTrue(Patterns.matches(null, "Favoritos", Patterns.favoritesTab))
+        assertTrue(Patterns.matches(null, "Saved", Patterns.favoritesTab))
+        assertTrue(Patterns.matches(null, "Coleções", Patterns.collectionsTab))
+        assertTrue(Patterns.matches(null, "Collections", Patterns.collectionsTab))
+    }
+
+    @Test
+    fun `abas das quatro categorias nao se confundem`() {
+        val rotulos = mapOf(
+            "Curtidos" to Patterns.likedTab,
+            "Favoritos" to Patterns.favoritesTab,
+            "Repostagens" to Patterns.repostTab,
+            "Coleções" to Patterns.collectionsTab,
+        )
+
+        for ((rotulo, correta) in rotulos) {
+            for ((outro, lista) in rotulos) {
+                val casou = Patterns.matches(null, rotulo, lista)
+                if (lista === correta) {
+                    assertTrue("$rotulo deveria casar com a propria aba", casou)
+                } else {
+                    assertFalse("$rotulo nao pode casar com a aba de $outro", casou)
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `botao de salvar e reconhecido`() {
+        assertTrue(Patterns.matches("Adicionar aos favoritos", null, Patterns.bookmarkButton))
+        assertTrue(Patterns.matches("Salvar vídeo", null, Patterns.bookmarkButton))
+        assertFalse(Patterns.matches("Curtir vídeo", null, Patterns.bookmarkButton))
+    }
+
+    @Test
+    fun `excluir colecao nao casa com criar colecao`() {
+        // Casar errado aqui criaria uma pasta em vez de apagar.
+        assertTrue(Patterns.matches(null, "Excluir coleção", Patterns.deleteCollection))
+        assertTrue(Patterns.matches(null, "Delete collection", Patterns.deleteCollection))
+        assertFalse(Patterns.matches(null, "Criar coleção", Patterns.deleteCollection))
+        assertFalse(Patterns.matches(null, "Nova coleção", Patterns.deleteCollection))
+    }
+
+    @Test
     fun `texto vazio nunca casa`() {
         assertFalse(Patterns.matches(null, null, Patterns.likeButton))
         assertFalse(Patterns.matches("", "", Patterns.likeButton))

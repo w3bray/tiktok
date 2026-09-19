@@ -1,7 +1,7 @@
 # TikTok Cleaner — userscript (só o celular)
 
-Remove **100% dos vídeos curtidos e republicados** rodando **dentro da própria
-página do TikTok**, no navegador do celular.
+Remove **100%** das curtidas, dos salvos, das coleções e dos republicados,
+rodando **dentro da própria página do TikTok**, no navegador do celular.
 
 Sem PC. Sem cabo. Sem ADB. Sem APK. Sem senha — usa a sessão que já está
 logada no navegador.
@@ -25,9 +25,10 @@ logada no navegador.
 5. Toque no seu **perfil** (a página tem que ser `tiktok.com/@seunome`).
 6. Um painel escuro aparece no canto inferior direito. Escolha:
 
-   - **Limpar tudo** — republicados e depois curtidos
-   - **Só curtidos**
-   - **Só republicados**
+   - **Limpar tudo** — as quatro categorias, em sequência
+   - **Curtidas**
+   - **Salvos e coleções**
+   - **Republicados**
 
 Enquanto roda, o painel mostra o que está fazendo e quantos já foram
 removidos. **Parar** interrompe na hora.
@@ -41,12 +42,16 @@ removidos. **Parar** interrompe na hora.
 
 O script vive dentro da página e faz o que você faria com o dedo:
 
-1. Abre a aba **Curtidos** ou **Repostagens** do seu perfil e confere pelo
-   `aria-selected` que a aba certa ficou ativa.
-2. Abre o primeiro vídeo da grade.
-3. Olha a cor do ícone: o TikTok pinta o botão aceso com o vermelho da marca
-   (`rgb(254,44,85)`). **Só toca se estiver aceso** — assim nunca curte nada
-   por engano. Depois reconfere; se o toque não pegou, tenta mais uma vez.
+1. Abre a aba da categoria no seu perfil — **Curtidos**, **Favoritos**,
+   **Repostagens**, e a sub-aba **Coleções** dentro de Favoritos — e confere
+   pelo `aria-selected` que a aba certa ficou ativa.
+2. Abre o primeiro item da grade.
+3. Olha a cor do ícone: o TikTok pinta o botão aceso com cor viva (vermelho em
+   curtir/repostar, amarelo em salvar) e deixa branco ou cinza quando apagado.
+   **Só toca se estiver aceso** — assim nunca curte nem salva nada por engano.
+   Depois reconfere; se o toque não pegou, tenta mais uma vez.
+   Coleções são pastas: abre a coleção, usa o menu de opções, toca em
+   *Excluir coleção* e confirma.
 4. Volta para a grade e repete, **até a aba zerar**. Daí o "100%".
 5. Termina mostrando `100% limpo` ou quantos itens não deram.
 
@@ -81,8 +86,9 @@ pressa, é para não parecer robô.
 npm run test:userscript
 ```
 
-Sobe um "TikTok" falso (SPA com perfil, abas, grade, página de vídeo e
-navegação por `history.pushState`), injeta o userscript como uma extensão
-faria, toca em **Limpar tudo** e confere que os 8 itens somem, que o painel
-reporta `100% limpo` e que nada é recurtido depois de terminar. Roda numa
-viewport de celular, sem internet e sem conta.
+Sobe um "TikTok" falso (SPA com perfil, as três abas, a sub-aba de coleções,
+grade, página de vídeo, página de coleção e navegação por `history.pushState`),
+injeta o userscript como uma extensão faria, toca em **Limpar tudo** e confere
+que os 12 itens das quatro categorias somem,
+que o painel reporta `100% limpo` e que nada é refeito depois de terminar. Roda
+numa viewport de celular, sem internet e sem conta.

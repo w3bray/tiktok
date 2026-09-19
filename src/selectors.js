@@ -46,6 +46,21 @@ const DEFAULTS = {
     'p[role="tab"]:has-text("Curtidos")',
     'p[role="tab"]:has-text("Liked")',
   ],
+  favoritesTab: [
+    '[data-e2e="favorites-tab"]',
+    '[data-e2e="favorite-tab"]',
+    'p[role="tab"]:has-text("Favoritos")',
+    'p[role="tab"]:has-text("Favorites")',
+    'p[role="tab"]:has-text("Salvos")',
+  ],
+  // Sem acentos nos :has-text — o texto acentuado depende do charset da
+  // pagina e um seletor que so casa em UTF-8 e um seletor que falha calado.
+  collectionsTab: [
+    '[data-e2e="collection-tab"]',
+    '[data-e2e="collections-tab"]',
+    'p[role="tab"]:has-text("Cole")',
+    'p[role="tab"]:has-text("Collections")',
+  ],
 
   // Grade de videos
   gridItem: ['[data-e2e="user-post-item"]', '[data-e2e="user-liked-item"]', 'div[class*="DivItemContainer"]'],
@@ -71,7 +86,44 @@ const DEFAULTS = {
     'button[aria-label*="epost"]',
     'button[aria-label*="ompartilhamento"]',
   ],
+  bookmarkButton: [
+    '[data-e2e="browse-bookmark-icon"]',
+    '[data-e2e="video-bookmark"]',
+    '[data-e2e="bookmark-icon"]',
+    '[data-e2e="undefined-icon"]',
+    'button[aria-label*="avorit"]',
+    'button[aria-label*="alvar"]',
+    'button[aria-label*="ookmark"]',
+  ],
   shareButton: ['[data-e2e="browse-share"]', '[data-e2e="share-icon"]', 'button[aria-label*="ompartilhar"]'],
+
+  // Colecoes (pastas dentro de Favoritos)
+  collectionLink: [
+    '[data-e2e="collection-item"] a',
+    'a[href*="/collection/"]',
+    '[data-e2e="user-collection-item"] a',
+  ],
+  collectionMenu: [
+    '[data-e2e="collection-more"]',
+    'button[aria-label*="ais opç"]',
+    'button[aria-label*="ore option"]',
+    'button:has-text("Editar")',
+    'button:has-text("Edit")',
+  ],
+  collectionDelete: [
+    'div[role="button"]:has-text("Excluir cole")',
+    'div[role="button"]:has-text("Apagar cole")',
+    'div[role="button"]:has-text("Delete collection")',
+    'li:has-text("Excluir cole")',
+    'li:has-text("Delete collection")',
+    'button:has-text("Excluir cole")',
+  ],
+  confirmDelete: [
+    'button:has-text("Excluir")',
+    'button:has-text("Delete")',
+    'button:has-text("Confirmar")',
+    'button:has-text("OK")',
+  ],
   shareMenuRepost: [
     'div[role="button"]:has-text("Repostar")',
     'div[role="button"]:has-text("Repost")',

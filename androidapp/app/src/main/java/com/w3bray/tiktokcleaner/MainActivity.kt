@@ -59,9 +59,25 @@ class MainActivity : Activity() {
             ),
         )
 
-        root.addView(action("Limpar tudo", listOf(CleanerService.Target.REPOSTS, CleanerService.Target.LIKES)))
-        root.addView(action("Só curtidos", listOf(CleanerService.Target.LIKES)))
-        root.addView(action("Só republicados", listOf(CleanerService.Target.REPOSTS)))
+        root.addView(
+            action(
+                "Limpar tudo",
+                listOf(
+                    CleanerService.Target.REPOSTS,
+                    CleanerService.Target.SAVED,
+                    CleanerService.Target.COLLECTIONS,
+                    CleanerService.Target.LIKES,
+                ),
+            ),
+        )
+        root.addView(action("Curtidas", listOf(CleanerService.Target.LIKES)))
+        root.addView(
+            action(
+                "Salvos e coleções",
+                listOf(CleanerService.Target.SAVED, CleanerService.Target.COLLECTIONS),
+            ),
+        )
+        root.addView(action("Republicados", listOf(CleanerService.Target.REPOSTS)))
 
         root.addView(
             button("Parar") {

@@ -6,7 +6,14 @@
  */
 import assert from 'node:assert/strict';
 import zlib from 'node:zlib';
-import { decodePng, redFraction, shrink, isBrandRed } from '../android/src/png.js';
+import {
+  decodePng,
+  redFraction,
+  shrink,
+  isBrandRed,
+  isBrandYellow,
+  isAccent,
+} from '../android/src/png.js';
 import { parseDump, center, matches, findByPatterns, gridCells } from '../android/src/ui.js';
 
 let checks = 0;
@@ -96,6 +103,28 @@ check('reconhece o vermelho da marca e recusa cinza/branco', () => {
   assert.equal(isBrandRed(254, 44, 85), true);
   assert.equal(isBrandRed(255, 255, 255), false);
   assert.equal(isBrandRed(22, 24, 35), false);
+});
+
+check('reconhece o amarelo do icone de salvar', () => {
+  assert.equal(isBrandYellow(255, 193, 7), true);
+  assert.equal(isBrandYellow(255, 255, 255), false);
+  assert.equal(isBrandYellow(22, 24, 35), false);
+  assert.equal(isBrandYellow(254, 44, 85), false, 'vermelho nao e amarelo');
+});
+
+check('aceso cobre vermelho e amarelo, mas nao apagado', () => {
+  assert.equal(isAccent(254, 44, 85), true);
+  assert.equal(isAccent(255, 193, 7), true);
+  assert.equal(isAccent(255, 255, 255), false);
+  assert.equal(isAccent(150, 150, 150), false);
+});
+
+check('redFraction aceita outro criterio de cor', () => {
+  const salvo = decodePng(makePng(10, 10, () => [255, 193, 7, 255]));
+  const caixa = { x1: 0, y1: 0, x2: 10, y2: 10 };
+
+  assert.equal(redFraction(salvo, caixa), 0, 'amarelo nao conta como vermelho');
+  assert.equal(redFraction(salvo, caixa, isAccent), 1, 'amarelo conta como aceso');
 });
 
 check('redFraction separa coracao curtido de nao curtido', () => {

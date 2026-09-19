@@ -17,6 +17,7 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const SCRIPT = fs.readFileSync(path.join(ROOT, 'userscript/tiktok-cleaner.user.js'), 'utf8');
 
 const VERMELHO = 'rgb(254, 44, 85)';
+const AMARELO = 'rgb(255, 193, 7)';
 const CINZA = 'rgb(22, 24, 35)';
 
 /** SPA minima que imita o site movel do TikTok. */
@@ -27,56 +28,100 @@ const PAGINA = `<!doctype html>
 <script>
   window.__estado = {
     curtidos: [1, 2, 3, 4, 5, 6],
+    salvos: [20, 21],
+    colecoes: ['viagem', 'receitas'],
     republicados: [7, 8],
     aba: 'likes',
   };
 
+  const LISTA = { likes: 'curtidos', saved: 'salvos', reposts: 'republicados', collections: 'colecoes' };
+
   function render() {
     const caminho = location.pathname;
     const video = /\\/video\\/(\\d+)/.exec(caminho);
+    const colecao = /\\/collection\\/([\\w-]+)/.exec(caminho);
     const app = document.getElementById('app');
 
     if (video) {
       const id = Number(video[1]);
-      const curtido = window.__estado.curtidos.includes(id);
-      const repostado = window.__estado.republicados.includes(id);
+      const cor = (lista, aceso) => (window.__estado[lista].includes(id) ? aceso : '${CINZA}');
+
       app.innerHTML =
         '<button data-e2e="browse-like-icon" aria-label="Curtir video">' +
-        '<svg style="fill: ' + (curtido ? '${VERMELHO}' : '${CINZA}') + '"><path/></svg></button>' +
+        '<svg style="fill: ' + cor('curtidos', '${VERMELHO}') + '"><path/></svg></button>' +
+        '<button data-e2e="browse-bookmark-icon" aria-label="Favoritos">' +
+        '<svg style="fill: ' + cor('salvos', '${AMARELO}') + '"><path/></svg></button>' +
         '<button data-e2e="video-repost" aria-label="Repostar">' +
-        '<svg style="fill: ' + (repostado ? '${VERMELHO}' : '${CINZA}') + '"><path/></svg></button>';
+        '<svg style="fill: ' + cor('republicados', '${VERMELHO}') + '"><path/></svg></button>';
 
-      app.querySelector('[data-e2e="browse-like-icon"]').onclick = () => {
-        alterna('curtidos', id);
-        render();
+      const liga = (seletor, lista) => {
+        app.querySelector(seletor).onclick = () => {
+          alterna(lista, id);
+          render();
+        };
       };
-      app.querySelector('[data-e2e="video-repost"]').onclick = () => {
-        alterna('republicados', id);
+
+      liga('[data-e2e="browse-like-icon"]', 'curtidos');
+      liga('[data-e2e="browse-bookmark-icon"]', 'salvos');
+      liga('[data-e2e="video-repost"]', 'republicados');
+      return;
+    }
+
+    if (colecao) {
+      const nome = colecao[1];
+      app.innerHTML =
+        '<button data-e2e="collection-more" aria-label="Mais opções">···</button>' +
+        '<div id="menu" style="display:none"><div role="button">Excluir coleção</div></div>' +
+        '<div id="dialogo" style="display:none"><button>Excluir</button></div>';
+
+      app.querySelector('[data-e2e="collection-more"]').onclick = () => {
+        document.getElementById('menu').style.display = 'block';
+      };
+      app.querySelector('#menu div[role="button"]').onclick = () => {
+        document.getElementById('dialogo').style.display = 'block';
+      };
+      app.querySelector('#dialogo button').onclick = () => {
+        window.__estado.colecoes = window.__estado.colecoes.filter((item) => item !== nome);
+        history.pushState({}, '', '/@conta');
         render();
       };
       return;
     }
 
     const aba = window.__estado.aba;
-    const itens = aba === 'likes' ? window.__estado.curtidos : window.__estado.republicados;
+    const itens = window.__estado[LISTA[aba]];
+    const favoritos = aba === 'saved' || aba === 'collections';
+
+    const item = (valor) =>
+      aba === 'collections'
+        ? '<div data-e2e="collection-item"><a href="/@conta/collection/' + valor + '">' + valor + '</a></div>'
+        : '<div data-e2e="user-post-item"><a href="/@conta/video/' + valor + '">v' + valor + '</a></div>';
 
     app.innerHTML =
       '<div role="tablist">' +
       '<p role="tab" data-e2e="repost-tab" aria-selected="' + (aba === 'reposts') + '">Repostagens</p>' +
+      '<p role="tab" data-e2e="favorites-tab" aria-selected="' + favoritos + '">Favoritos</p>' +
       '<p role="tab" data-e2e="like-tab" aria-selected="' + (aba === 'likes') + '">Curtidos</p>' +
-      '</div><div id="grade">' +
-      itens
-        .map(
-          (id) =>
-            '<div data-e2e="user-post-item"><a href="/@conta/video/' + id + '">v' + id + '</a></div>',
-        )
-        .join('') +
+      '</div>' +
+      (favoritos
+        ? '<div role="tablist"><p role="tab" data-e2e="collection-tab" aria-selected="' +
+          (aba === 'collections') + '">Coleções</p></div>'
+        : '') +
+      '<div id="grade">' +
+      itens.map(item).join('') +
       (itens.length ? '' : '<p data-e2e="user-post-empty">Nada por aqui</p>') +
       '</div>';
 
+    const destino = {
+      'like-tab': 'likes',
+      'repost-tab': 'reposts',
+      'favorites-tab': 'saved',
+      'collection-tab': 'collections',
+    };
+
     for (const tab of app.querySelectorAll('[role="tab"]')) {
       tab.onclick = () => {
-        window.__estado.aba = tab.dataset.e2e === 'like-tab' ? 'likes' : 'reposts';
+        window.__estado.aba = destino[tab.dataset.e2e];
         render();
       };
     }
@@ -96,6 +141,10 @@ const PAGINA = `<!doctype html>
     if (posicao === -1) atual.push(id);
     else atual.splice(posicao, 1);
   }
+
+  window.__totalRestante = () =>
+    window.__estado.curtidos.length + window.__estado.salvos.length +
+    window.__estado.colecoes.length + window.__estado.republicados.length;
 
   window.onpopstate = render;
   history.replaceState({}, '', '/@conta');
@@ -132,21 +181,21 @@ try {
 
   const inicial = await estado();
   assert.equal(inicial.curtidos.length, 6);
+  assert.equal(inicial.salvos.length, 2);
+  assert.equal(inicial.colecoes.length, 2);
   assert.equal(inicial.republicados.length, 2);
 
   await painel.getByRole('button', { name: 'Limpar tudo' }).click();
   console.log('  ok "Limpar tudo" inicia a limpeza');
 
-  await pagina.waitForFunction(
-    () => window.__estado.curtidos.length === 0 && window.__estado.republicados.length === 0,
-    undefined,
-    { timeout: 120000 },
-  );
+  await pagina.waitForFunction(() => window.__totalRestante() === 0, undefined, { timeout: 180000 });
 
   const final = await estado();
   assert.deepEqual(final.curtidos, [], 'deveria zerar os curtidos');
+  assert.deepEqual(final.salvos, [], 'deveria zerar os salvos');
+  assert.deepEqual(final.colecoes, [], 'deveria zerar as coleções');
   assert.deepEqual(final.republicados, [], 'deveria zerar os republicados');
-  console.log('  ok zerou curtidos e republicados');
+  console.log('  ok zerou as quatro categorias');
 
   await pagina.waitForFunction(
     () => document.querySelector('#tiktok-cleaner .status')?.textContent?.includes('100% limpo'),
@@ -156,17 +205,15 @@ try {
   console.log('  ok painel reporta 100% limpo');
 
   const resumo = await painel.locator('.status').textContent();
-  assert.match(resumo, /Removidos: 8/, `esperava 8 remocoes no resumo, veio: ${resumo}`);
-  console.log('  ok resumo conta as 8 remocoes');
+  assert.match(resumo, /Removidos: 12/, `esperava 12 remocoes no resumo, veio: ${resumo}`);
+  console.log('  ok resumo conta as 12 remocoes');
 
-  // Nao pode recurtir nada depois de terminar.
+  // Nao pode recurtir nem resalvar nada depois de terminar.
   await pagina.waitForTimeout(4000);
-  const depois = await estado();
-  assert.deepEqual(depois.curtidos, [], 'nao pode voltar a curtir depois de parar');
-  assert.deepEqual(depois.republicados, [], 'nao pode voltar a repostar depois de parar');
-  console.log('  ok nao recurte nada depois de terminar');
+  assert.equal(await pagina.evaluate(() => window.__totalRestante()), 0, 'nada pode voltar');
+  console.log('  ok nao refaz nada depois de terminar');
 
-  console.log('\nOK: userscript limpou 8/8 itens e parou sozinho.');
+  console.log('\nOK: userscript limpou 12/12 itens das quatro categorias e parou sozinho.');
 } finally {
   await browser.close();
   fs.rmSync(path.join(os.tmpdir(), 'tiktok-cleaner-userscript'), { recursive: true, force: true });

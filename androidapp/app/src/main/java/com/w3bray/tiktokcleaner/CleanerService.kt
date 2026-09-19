@@ -28,9 +28,20 @@ import kotlin.random.Random
  */
 class CleanerService : AccessibilityService() {
 
-    enum class Target(val label: String) {
-        LIKES("curtidos"),
-        REPOSTS("republicados"),
+    /**
+     * Cada alvo diz em que aba mora, qual botão desfaz e de que cor o ícone
+     * aceso é: vermelho para curtir/repostar, amarelo para salvar.
+     */
+    enum class Target(
+        val label: String,
+        val tab: List<String>,
+        val button: List<String>?,
+        val color: (Int, Int, Int) -> Boolean,
+    ) {
+        LIKES("curtidos", Patterns.likedTab, Patterns.likeButton, Geometry::isBrandRed),
+        SAVED("salvos", Patterns.favoritesTab, Patterns.bookmarkButton, Geometry::isAccent),
+        COLLECTIONS("coleções", Patterns.favoritesTab, null, Geometry::isAccent),
+        REPOSTS("republicados", Patterns.repostTab, Patterns.repostButton, Geometry::isBrandRed),
     }
 
     private enum class Outcome { REMOVED, ALREADY, FAILED }
@@ -228,7 +239,7 @@ class CleanerService : AccessibilityService() {
         return result
     }
 
-    private fun redFraction(box: Box): Double? {
+    private fun redFraction(box: Box, color: (Int, Int, Int) -> Boolean): Double? {
         val bitmap = screenshot() ?: return null
 
         try {
@@ -245,7 +256,7 @@ class CleanerService : AccessibilityService() {
                 for (x in left until right) {
                     val pixel = bitmap.getPixel(x, y)
                     total++
-                    if (Geometry.isBrandRed(Color.red(pixel), Color.green(pixel), Color.blue(pixel))) {
+                    if (color(Color.red(pixel), Color.green(pixel), Color.blue(pixel))) {
                         red++
                     }
                 }
@@ -258,8 +269,8 @@ class CleanerService : AccessibilityService() {
     }
 
     /** true = aceso, false = apagado, null = não deu para ler. */
-    private fun isActive(node: AccessibilityNodeInfo): Boolean? {
-        redFraction(boxOf(node))?.let { return it >= RED_THRESHOLD }
+    private fun isActive(node: AccessibilityNodeInfo, color: (Int, Int, Int) -> Boolean): Boolean? {
+        redFraction(boxOf(node), color)?.let { return it >= RED_THRESHOLD }
         if (node.isSelected || node.isChecked) return true
         if (Patterns.matches(node.contentDescription, node.text, Patterns.activeState)) return true
         return null
@@ -288,8 +299,7 @@ class CleanerService : AccessibilityService() {
         click(profile)
         pause(1500, 2600)
 
-        val patterns = if (target == Target.LIKES) Patterns.likedTab else Patterns.repostTab
-        val tab = find(patterns)
+        val tab = find(target.tab)
         if (tab == null) {
             Status.message("Não achei a aba de ${target.label}.")
             return false
@@ -297,6 +307,18 @@ class CleanerService : AccessibilityService() {
 
         click(tab)
         pause(1800, 2800)
+
+        // Coleções são uma sub-aba dentro de Favoritos.
+        if (target == Target.COLLECTIONS) {
+            val sub = find(Patterns.collectionsTab)
+            if (sub == null) {
+                Status.message("Não achei a sub-aba \"Coleções\" dentro de Favoritos.")
+                return false
+            }
+            click(sub)
+            pause(1500, 2400)
+        }
+
         return true
     }
 
@@ -311,27 +333,64 @@ class CleanerService : AccessibilityService() {
     // -------------------------------------------------------------- remoção
 
     private fun undo(target: Target): Outcome {
-        val patterns = if (target == Target.LIKES) Patterns.likeButton else Patterns.repostButton
+        if (target == Target.COLLECTIONS) return deleteCollection()
+
+        val patterns = target.button ?: return Outcome.FAILED
         val button = find(patterns)
             ?: return if (target == Target.REPOSTS) undoRepostViaShare() else Outcome.FAILED
 
-        if (isActive(button) == false) return Outcome.ALREADY
+        if (isActive(button, target.color) == false) return Outcome.ALREADY
         if (!click(button)) return Outcome.FAILED
         pause(1000, 1800)
 
         // A view pode ter sido recriada pelo toque: procura de novo.
         val after = find(patterns) ?: return Outcome.REMOVED
 
-        return when (isActive(after)) {
+        return when (isActive(after, target.color)) {
             false -> Outcome.REMOVED
             null -> Outcome.REMOVED // sem leitura de estado: confia no toque
             true -> {
                 click(after)
                 pause(1000, 1800)
                 val again = find(patterns)
-                if (again == null || isActive(again) != true) Outcome.REMOVED else Outcome.FAILED
+                if (again == null || isActive(again, target.color) != true) {
+                    Outcome.REMOVED
+                } else {
+                    Outcome.FAILED
+                }
             }
         }
+    }
+
+    /**
+     * Exclui a coleção aberta: menu de opções, "excluir coleção" e confirmar.
+     * Se o menu não existir nesta versão, volta sem mexer em nada.
+     */
+    private fun deleteCollection(): Outcome {
+        var remove = find(Patterns.deleteCollection)
+
+        if (remove == null) {
+            val menu = find(Patterns.collectionMenu) ?: return Outcome.FAILED
+            click(menu)
+            pause(1200, 2000)
+            remove = find(Patterns.deleteCollection)
+        }
+
+        if (remove == null) {
+            back()
+            pause(700, 1200)
+            return Outcome.FAILED
+        }
+
+        click(remove)
+        pause(1200, 2000)
+
+        find(Patterns.confirm)?.let {
+            click(it)
+            pause(1000, 1800)
+        }
+
+        return Outcome.REMOVED
     }
 
     /** Versões sem botão de repost no painel: vai pelo menu de compartilhar. */
@@ -389,7 +448,8 @@ class CleanerService : AccessibilityService() {
                 tap(cell.centerX, cell.centerY)
                 pause(1500, 2400)
 
-                if (find(Patterns.playerMarker) == null) {
+                // Coleção abre uma grade, não o player: só os vídeos têm esse check.
+                if (target != Target.COLLECTIONS && find(Patterns.playerMarker) == null) {
                     back()
                     pause(800, 1400)
                     Status.update { it.copy(failed = it.failed + 1) }
