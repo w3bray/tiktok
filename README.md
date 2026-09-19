@@ -8,6 +8,19 @@ Feito com [Playwright](https://playwright.dev) (Chromium real, não é API
 privada): o bot faz exatamente os mesmos cliques que você faria à mão, só que
 sem parar.
 
+## Duas versões
+
+| Onde roda | Como | Comando |
+|---|---|---|
+| **Navegador** (PC/Mac/Linux) | Chromium via Playwright, no site do TikTok | `npm run clean` |
+| **Android** (app do celular) | `adb` + UiAutomator, tocando na tela do aparelho | `npm run android` |
+
+A versão Android funciona com o celular ligado num computador por USB **ou no
+próprio celular**, via Termux + depuração sem fio. Instruções completas em
+**[android/README.md](android/README.md)**.
+
+O restante deste arquivo descreve a versão de navegador.
+
 ---
 
 ## ⚠️ Leia antes de usar
@@ -175,6 +188,14 @@ src/
   logger.js         console colorido + logs/*.jsonl
   tasks/clean.js    varredura e remoção (curtidos e republicados)
   tasks/inspect.js  diagnóstico de seletores
+
+android/
+  patterns.json     rótulos do app (PT/EN) + overrides locais
+  src/index.js      CLI da versão Android
+  src/adb.js        wrapper do adb (toque, swipe, dump, screencap)
+  src/ui.js         leitura da árvore de views do UiAutomator
+  src/png.js        decodificador PNG mínimo + detecção do vermelho
+  src/flows.js      navegação no app e remoção
 ```
 
 Cada execução grava um log completo em `logs/run-<data>.jsonl` com todos os
@@ -183,12 +204,19 @@ links processados — dá para auditar exatamente o que foi removido.
 ## Teste
 
 ```bash
-npm test
+npm test              # tudo
+npm run test:web      # só a versão de navegador
+npm run test:android  # só a versão Android
 ```
 
-Sobe um "TikTok" falso (rotas interceptadas pelo Playwright, sem internet e
-sem conta) com 5 vídeos curtidos e confere que o bot zera a aba e que a
-verificação final acusa vazio.
+Nenhum teste usa internet ou conta real:
+
+- **Navegador** — sobe um "TikTok" falso (rotas interceptadas pelo Playwright)
+  com 5 vídeos curtidos e confere que o bot zera a aba e que a verificação
+  final acusa vazio.
+- **Android** — um aparelho simulado responde `uiautomator dump` e `screencap`
+  conforme um estado interno, cobrindo os dois comportamentos de grade do app
+  e o `--limit`, mais os testes unitários do PNG e do parser.
 
 ---
 

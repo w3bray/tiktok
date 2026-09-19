@@ -14,6 +14,7 @@ node_modules/
 
 # Overrides locais de seletores
 src/selectors.local.json
+android/patterns.local.json
 
 # Sistema
 .DS_Store

@@ -1,0 +1,41 @@
+{
+  "_comment": [
+    "Padroes (regex, sem distincao de maiusculas) casados contra o content-desc",
+    "e o text de cada view do app. Cobrem portugues e ingles.",
+    "O TikTok muda esses rotulos entre versoes: rode `npm run android:inspect`",
+    "para ver os textos do SEU aparelho e sobrescreva em android/patterns.local.json."
+  ],
+
+  "packages": [
+    "com.zhiliaoapp.musically",
+    "com.ss.android.ugc.trill",
+    "com.ss.android.ugc.aweme"
+  ],
+
+  "profileTab": ["^perfil$", "^profile$", "^eu$", "^me$", "aba perfil", "profile tab"],
+  "likedTab": ["curtid", "\\bliked\\b", "videos curtidos", "liked videos"],
+  "repostTab": ["repost", "republicad", "repostagem"],
+
+  "likeButton": ["curtir", "curtid", "\\blike\\b", "\\bliked\\b", "descurtir", "unlike"],
+  "repostButton": ["^repostar$", "^repost$", "repostado", "reposted"],
+  "shareButton": ["compartilhar", "\\bshare\\b", "enviar para"],
+  "removeRepost": [
+    "remover.*repost",
+    "remove.*repost",
+    "desfazer.*repost",
+    "remover.*republica",
+    "cancelar.*repost"
+  ],
+  "confirm": ["^remover$", "^remove$", "^confirmar$", "^confirm$", "^sim$", "^yes$", "^ok$"],
+
+  "emptyState": [
+    "nada por aqui",
+    "nenhum video",
+    "sem videos",
+    "no videos",
+    "nothing here",
+    "no content"
+  ],
+
+  "playerMarker": ["comentar", "\\bcomment", "curtir video", "like video", "descurtir video"]
+}
