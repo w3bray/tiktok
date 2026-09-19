@@ -158,6 +158,15 @@ check('casa padroes em content-desc e em text', () => {
   assert.equal(matches(tab, ['repost']), false);
 });
 
+check('casa mesmo com acento na tela (vídeo vs video)', () => {
+  const like = nodes.find((node) => node.desc.startsWith('Curtir video'));
+  const acentuado = { ...like, desc: 'Curtir vídeo, 1.2M curtidas' };
+
+  assert.equal(matches(acentuado, ['curtir video']), true);
+  assert.equal(matches({ desc: 'Comentários', text: '' }, ['comentario']), true);
+  assert.equal(matches({ desc: '', text: 'Vídeos curtidos' }, ['videos curtidos']), true);
+});
+
 check('findByPatterns prefere a menor view que casa', () => {
   const found = findByPatterns(nodes, ['perfil'], { clickable: true });
   assert.equal(found.desc, 'Perfil');

@@ -1,0 +1,51 @@
+name: APK Android
+
+# Compila o app de acessibilidade e publica o .apk como artefato do run —
+# e assim que da para instalar no celular sem ter um PC com Android Studio.
+on:
+  push:
+    branches: ['**']
+    paths:
+      - 'androidapp/**'
+      - '.github/workflows/android-apk.yml'
+  pull_request:
+    paths:
+      - 'androidapp/**'
+      - '.github/workflows/android-apk.yml'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Instala o JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Instala o Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Prepara o Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Testes unitarios (JVM, sem emulador)
+        working-directory: androidapp
+        run: gradle :app:testDebugUnitTest --no-daemon --stacktrace
+
+      - name: Compila o APK de debug
+        working-directory: androidapp
+        run: gradle :app:assembleDebug --no-daemon --stacktrace
+
+      - name: Publica o APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: tiktok-cleaner-apk
+          path: androidapp/app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error

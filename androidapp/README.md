@@ -1,0 +1,121 @@
+# TikTok Cleaner — app Android (só o celular)
+
+App que controla o **app nativo do TikTok** pelo **Serviço de Acessibilidade**
+do Android: lê a tela, encontra os botões e toca neles até as abas *Curtidos*
+e *Repostagens* zerarem.
+
+Sem PC, sem cabo, sem ADB e sem root. Só o celular.
+
+---
+
+## Como instalar sem ter computador
+
+O APK é compilado pelo **GitHub Actions** — você baixa pronto, pelo próprio
+celular.
+
+1. No navegador do celular, abra o repositório → aba **Actions** → workflow
+   **APK Android** → o run mais recente do seu branch.
+2. Em **Artifacts**, baixe **tiktok-cleaner-apk** (vem em `.zip`).
+3. Descompacte (o Files do Android abre zip; qualquer app de arquivos serve) e
+   toque no `.apk`.
+4. O Android vai pedir para permitir **instalar apps desconhecidos** para o app
+   de arquivos/navegador — autorize.
+5. Abra o **TikTok Cleaner** e siga os dois passos da tela:
+   - **Ativar acessibilidade** → Configurações → Acessibilidade →
+     *TikTok Cleaner* → ligar.
+   - Voltar ao app e escolher **Limpar tudo**, **Só curtidos** ou
+     **Só republicados**.
+
+Se preferir compilar você mesmo (com PC):
+
+```bash
+cd androidapp
+gradle :app:assembleDebug     # ou ./gradlew, se voce gerar o wrapper
+# APK em app/build/outputs/apk/debug/
+```
+
+---
+
+## O que ele faz
+
+1. Abre o TikTok (detecta qual pacote está instalado: `musically`, `trill` ou
+   `aweme`).
+2. Vai ao **Perfil** e abre a aba alvo, encontrando os botões pela descrição de
+   acessibilidade — em português ou inglês, **com ou sem acento** (os rótulos
+   são normalizados antes da comparação).
+3. Acha as células da grade **pela geometria**: a grade tem 3 colunas, então
+   cada célula mede ~⅓ da largura da tela. Isso sobrevive a mudanças de layout
+   muito melhor do que qualquer `resource-id`.
+4. Abre o vídeo e lê o **estado real do ícone**: no Android 11+ o próprio
+   serviço tira uma captura de tela e mede a fração de pixels no vermelho da
+   marca (`#FE2C55`) no miolo do botão. Só toca se estiver aceso, e reconfere
+   depois. Em versões mais antigas, cai para `isSelected`/`isChecked` e para a
+   descrição ("Descurtir" = aceso).
+5. Volta, recarrega a grade e repete até zerar, com verificação final que
+   reporta `100% limpo` ou `Incompleto`.
+
+A tela é relida **a cada item**, porque em algumas versões a grade se
+reorganiza assim que o vídeo sai da lista — uma posição lida antes passaria a
+apontar para o vizinho.
+
+---
+
+## Privacidade
+
+O serviço declara `android:packageNames` com os três pacotes do TikTok: o
+Android **só entrega a ele as telas desses apps**. Ele não lê seu banco, seu
+WhatsApp nem qualquer outra tela, mesmo ligado. Nada sai do aparelho: não há
+rede no app.
+
+Desligue em Configurações → Acessibilidade quando terminar.
+
+---
+
+## Estrutura
+
+```
+androidapp/app/src/main/java/com/w3bray/tiktokcleaner/
+  MainActivity.kt     tela única (UI em código, sem XML de layout)
+  CleanerService.kt   o serviço de acessibilidade: navegação e remoção
+  Geometry.kt         heurística da grade e vermelho da marca (Kotlin puro)
+  Patterns.kt         rótulos PT/EN + normalização de acentos (Kotlin puro)
+  Status.kt           estado compartilhado entre serviço e tela
+```
+
+`Geometry.kt` e `Patterns.kt` não importam nada do Android — é o que permite
+testá-los na JVM, sem emulador:
+
+```bash
+cd androidapp && gradle :app:testDebugUnitTest
+```
+
+13 testes cobrem a heurística da grade (célula vs. botão vs. banner), a
+ordenação e deduplicação das células, o `shrink`, a detecção do vermelho, e o
+casamento de rótulos — incluindo os dois casos perigosos: "Remover repostagem"
+não pode casar com "Repostar" (criaria uma republicação em vez de remover), e a
+aba "Curtidos" do perfil não pode ser confundida com o player.
+
+O workflow **APK Android** roda esses testes e compila o APK a cada push.
+
+---
+
+## Quando o app mudar
+
+O TikTok renomeia botões entre versões. Todos os rótulos estão em
+`Patterns.kt`, como listas de regex. Edite, recompile pelo Actions e reinstale.
+
+Se quiser descobrir os rótulos atuais do **seu** aparelho sem PC, o caminho
+mais rápido continua sendo o `--inspect` da versão ADB (veja
+`android/README.md`), mas ele precisa de um computador.
+
+---
+
+## Avisos
+
+- **Não testado em aparelho real por quem escreveu o código**: a lógica pura
+  tem testes na JVM e o app compila no CI, mas a interação com o app do TikTok
+  depende da versão instalada no seu celular. Comece com poucos itens e veja se
+  o contador bate.
+- Enquanto roda, o app controla a tela — não mexa no celular.
+- Automação viola os Termos de Uso do TikTok; pode dar bloqueio temporário.
+- **A remoção não tem desfazer.**

@@ -18,8 +18,9 @@
     "android:reposts": "node android/src/index.js --reposts",
     "android:dry-run": "node android/src/index.js --all --dry-run",
     "android:inspect": "node android/src/index.js --inspect",
-    "test": "npm run test:android && npm run test:web",
+    "test": "npm run test:android && npm run test:userscript && npm run test:web",
     "test:web": "node test/offline.test.mjs",
+    "test:userscript": "node test/userscript.test.mjs",
     "test:android": "node test/android.test.mjs && node test/android-adb.test.mjs && node test/android-flow.test.mjs"
   },
   "engines": {

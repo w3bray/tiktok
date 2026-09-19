@@ -8,16 +8,18 @@ Feito com [Playwright](https://playwright.dev) (Chromium real, não é API
 privada): o bot faz exatamente os mesmos cliques que você faria à mão, só que
 sem parar.
 
-## Duas versões
+## Quatro versões
 
-| Onde roda | Como | Comando |
+| Versão | Precisa de | Como funciona |
 |---|---|---|
-| **Navegador** (PC/Mac/Linux) | Chromium via Playwright, no site do TikTok | `npm run clean` |
-| **Android** (app do celular) | `adb` + UiAutomator, tocando na tela do aparelho | `npm run android` |
+| **[Userscript](userscript/README.md)** — só o celular | Firefox + Violentmonkey | Roda dentro da página do TikTok, no navegador do celular |
+| **[App Android](androidapp/README.md)** — só o celular | Instalar o APK | Serviço de Acessibilidade controlando o app nativo |
+| **[ADB](android/README.md)** — celular + PC (ou Termux) | `adb` | UiAutomator tocando na tela do aparelho |
+| **Navegador** (este arquivo) — PC | Node + Playwright | Chromium real no site do TikTok |
 
-A versão Android funciona com o celular ligado num computador por USB **ou no
-próprio celular**, via Termux + depuração sem fio. Instruções completas em
-**[android/README.md](android/README.md)**.
+**Sem computador?** Use o [userscript](userscript/README.md) (instala em ~3
+minutos, sem compilar nada) ou o [app Android](androidapp/README.md) (o APK é
+compilado pelo GitHub Actions e você baixa pelo próprio celular).
 
 O restante deste arquivo descreve a versão de navegador.
 
@@ -204,19 +206,26 @@ links processados — dá para auditar exatamente o que foi removido.
 ## Teste
 
 ```bash
-npm test              # tudo
-npm run test:web      # só a versão de navegador
-npm run test:android  # só a versão Android
+npm test                 # tudo
+npm run test:web         # versão de navegador
+npm run test:android     # versão ADB
+npm run test:userscript  # userscript do celular
 ```
 
-Nenhum teste usa internet ou conta real:
+Os testes do app Android (Kotlin) rodam no CI: `cd androidapp && gradle :app:testDebugUnitTest`.
+
+Nenhum teste usa internet, aparelho ou conta real:
 
 - **Navegador** — sobe um "TikTok" falso (rotas interceptadas pelo Playwright)
   com 5 vídeos curtidos e confere que o bot zera a aba e que a verificação
   final acusa vazio.
-- **Android** — um aparelho simulado responde `uiautomator dump` e `screencap`
-  conforme um estado interno, cobrindo os dois comportamentos de grade do app
-  e o `--limit`, mais os testes unitários do PNG e do parser.
+- **Android (ADB)** — um aparelho simulado responde `uiautomator dump` e
+  `screencap` conforme um estado interno, cobrindo os dois comportamentos de
+  grade do app e o `--limit`, mais os testes unitários do PNG e do parser.
+- **Userscript** — uma SPA que imita o site móvel (perfil, abas, grade, vídeo,
+  navegação por `pushState`) com o script injetado como uma extensão faria.
+- **App Android** — testes JVM da heurística da grade e do casamento de
+  rótulos, sem emulador.
 
 ---
 
