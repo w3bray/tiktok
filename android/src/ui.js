@@ -66,9 +66,17 @@ export function area(node) {
   return Math.max(0, x2 - x1) * Math.max(0, y2 - y1);
 }
 
+/**
+ * Tira os acentos antes de comparar: o app mostra "Curtir vídeo" e os padroes
+ * sao escritos sem acento, entao sem isso nada casaria.
+ */
+function semAcento(text) {
+  return text.normalize('NFD').replace(/[̀-ͯ]/g, '');
+}
+
 /** Casa content-desc OU text contra uma lista de regex (string, sem flags). */
 export function matches(node, patterns) {
-  const haystack = `${node.desc} ${node.text}`.trim();
+  const haystack = semAcento(`${node.desc} ${node.text}`.trim());
   if (!haystack) return false;
   return patterns.some((pattern) => new RegExp(pattern, 'i').test(haystack));
 }

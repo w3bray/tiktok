@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">TikTok Cleaner</string>
+    <string name="service_label">TikTok Cleaner</string>
+    <string name="service_description">Remove os vídeos curtidos e republicados da sua própria conta do TikTok, tocando nos botões do app por você. Só lê a tela do TikTok.</string>
+</resources>
