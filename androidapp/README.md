@@ -11,21 +11,35 @@ Sem PC, sem cabo, sem ADB e sem root. Só o celular.
 
 ## Como instalar sem ter computador
 
-O APK é compilado pelo **GitHub Actions** — você baixa pronto, pelo próprio
-celular.
+O APK é compilado pelo **GitHub Actions** a cada mudança no app e publicado
+como Release. Baixe direto pelo celular:
 
-1. No navegador do celular, abra o repositório → aba **Actions** → workflow
-   **APK Android** → o run mais recente do seu branch.
-2. Em **Artifacts**, baixe **tiktok-cleaner-apk** (vem em `.zip`).
-3. Descompacte (o Files do Android abre zip; qualquer app de arquivos serve) e
-   toque no `.apk`.
-4. O Android vai pedir para permitir **instalar apps desconhecidos** para o app
-   de arquivos/navegador — autorize.
-5. Abra o **TikTok Cleaner** e siga os dois passos da tela:
+**https://github.com/w3bray/tiktok/releases/latest/download/tiktok-cleaner.apk**
+
+É o `.apk` puro: sem zip, sem precisar estar logado no GitHub e sem garimpar
+no Actions. O link é fixo — aponta sempre para a última versão compilada da
+`main`.
+
+1. Abra o link no navegador do celular e baixe.
+2. Toque no arquivo baixado. O Android vai pedir para permitir **instalar apps
+   desconhecidos** para o navegador/app de arquivos — autorize.
+3. Abra o **TikTok Cleaner** e siga os dois passos da tela:
    - **Ativar acessibilidade** → Configurações → Acessibilidade →
      *TikTok Cleaner* → ligar.
    - Voltar ao app e escolher **Limpar tudo**, **Curtidas**,
      **Salvos e coleções** ou **Republicados**.
+
+<details>
+<summary>Pelo Actions, se preferir (ou para pegar o APK de um branch)</summary>
+
+Repositório → aba **Actions** → **APK Android** → run desejado → role até o
+fim, caixa **Artifacts** → `tiktok-cleaner-apk`.
+
+Esse caminho vem em `.zip` e **exige estar logado no GitHub**. No app do
+GitHub para Android não dá para baixar direto: toque em **Artefatos ↗** no
+resumo do run, que ele abre no navegador.
+
+</details>
 
 Se preferir compilar você mesmo (com PC):
 

@@ -27,8 +27,10 @@ sem parar.
 | **Navegador** (este arquivo) — PC | Node + Playwright | Chromium real no site do TikTok |
 
 **Sem computador?** Use o [userscript](userscript/README.md) (instala em ~3
-minutos, sem compilar nada) ou o [app Android](androidapp/README.md) (o APK é
-compilado pelo GitHub Actions e você baixa pelo próprio celular).
+minutos, sem compilar nada) ou o [app Android](androidapp/README.md) — o APK
+sai pronto em
+[releases/latest](https://github.com/w3bray/tiktok/releases/latest/download/tiktok-cleaner.apk),
+`.apk` direto, sem zip e sem login.
 
 O restante deste arquivo descreve a versão de navegador.
 

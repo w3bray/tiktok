@@ -1,7 +1,10 @@
 name: APK Android
 
-# Compila o app de acessibilidade e publica o .apk como artefato do run —
-# e assim que da para instalar no celular sem ter um PC com Android Studio.
+# Compila o app de acessibilidade e publica o .apk de duas formas:
+#  - como artefato do run (precisa estar logado no GitHub e vem zipado);
+#  - na main, como Release fixo "apk-latest", que da um link direto pro .apk:
+#    https://github.com/w3bray/tiktok/releases/latest/download/tiktok-cleaner.apk
+#    Esse e o caminho para instalar no celular sem PC e sem garimpo.
 on:
   push:
     branches: ['**']
@@ -17,6 +20,9 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+
+    permissions:
+      contents: write # necessario para criar o Release com o APK
 
     steps:
       - uses: actions/checkout@v4
@@ -48,9 +54,40 @@ jobs:
         working-directory: androidapp
         run: gradle :app:assembleDebug --no-daemon --stacktrace
 
-      - name: Publica o APK
+      - name: Renomeia o APK
+        run: |
+          cp androidapp/app/build/outputs/apk/debug/app-debug.apk tiktok-cleaner.apk
+          ls -lh tiktok-cleaner.apk
+
+      - name: Publica o APK como artefato do run
         uses: actions/upload-artifact@v4
         with:
           name: tiktok-cleaner-apk
-          path: androidapp/app/build/outputs/apk/debug/*.apk
+          path: tiktok-cleaner.apk
           if-no-files-found: error
+
+      # Release recriado a cada push na main, sempre na mesma tag, para o link
+      # "releases/latest/download/tiktok-cleaner.apk" nunca mudar.
+      - name: Publica o APK no Release apk-latest
+        if: github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cat > notas.md <<'EOF'
+          ## Instalar pelo celular
+
+          1. Baixe o **tiktok-cleaner.apk** aqui embaixo (é um `.apk` direto, sem zip).
+          2. Toque no arquivo baixado e autorize "instalar apps desconhecidos".
+          3. Abra o **TikTok Cleaner** → **Ativar acessibilidade** → ligue na lista.
+          4. Volte ao app e escolha: Limpar tudo · Curtidas · Salvos e coleções · Republicados.
+
+          Enquanto roda, o app controla a tela — não mexa no celular. A remoção não tem desfazer.
+          EOF
+          printf '\nCompilado de `%s` — [run](%s/%s/actions/runs/%s).\n' \
+            "${GITHUB_SHA:0:7}" "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID" >> notas.md
+
+          gh release delete apk-latest --yes --cleanup-tag || true
+          gh release create apk-latest tiktok-cleaner.apk \
+            --title "TikTok Cleaner — APK mais recente" \
+            --notes-file notas.md \
+            --latest
